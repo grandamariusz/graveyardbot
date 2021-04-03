@@ -1,16 +1,11 @@
 import discord, os, urllib.request, json, random, asyncio, requests, re
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
-
-prefix = os.environ['OSUBOT_PREFIX']
-join_channel = os.environ['OSUBOT_JOIN_CHANNEL']
-discord_token = os.environ['OSUBOT_DISCORD_TOKEN']
-api_id = os.environ['OSUBOT_API_ID']
-api_token = os.environ['OSUBOT_API_TOKEN']
+import config
 
 intents = discord.Intents.default()
 intents.members = True
-client = commands.Bot(command_prefix=prefix, intents=intents)
+client = commands.Bot(command_prefix=config.prefix, intents=intents)
 
 ###################################### Event functions
 @client.event
@@ -21,7 +16,7 @@ async def on_ready():
 @client.event
 async def on_member_join(member):
     role = discord.utils.get(member.guild.roles, name="Newcomers")
-    channel = client.get_channel(join_channel)
+    channel = client.get_channel(config.join_channel)
     await member.add_roles(role)
 
     g = ['Welcome to hell', 'Abandon all hope, ye who enter here','The path to paradise, begins in hell', 'Heaven might shine bright, but so do flames']
@@ -37,8 +32,8 @@ async def user(ctx, user_id):
     '''User details. Use: !user <user_id>'''
 
     url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': api_id,
-            'client_secret': api_token,
+    data = {'client_id': config.api_id,
+            'client_secret': config.api_token,
             'grant_type': 'client_credentials',
             'scope': 'public'}
     token = requests.post(url, data).json()
@@ -65,8 +60,8 @@ async def verify(ctx, link):
 
     # split this into another function
     url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': api_id,
-            'client_secret': api_token,
+    data = {'client_id': config.api_id,
+            'client_secret': config.api_token,
             'grant_type': 'client_credentials',
             'scope': 'public'}
     token = requests.post(url, data).json()
