@@ -110,6 +110,6 @@ async def roll(ctx):
 @client.command()
 async def test(ctx):
     ''' Test '''
-    await ctx.send("Absolute state of Linux")
+    await ctx.send("Absolute state of Linux <:tux:775785821768122459>")
 
-client.run(discord_token)
+client.run(config.discord_token)
