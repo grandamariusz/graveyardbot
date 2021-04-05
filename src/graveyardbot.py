@@ -2,6 +2,7 @@ import discord, os, urllib.request, json, random, asyncio, requests, re
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
 import config
+import musicbrainzngs as m
 
 intents = discord.Intents.default()
 intents.members = True
@@ -19,7 +20,7 @@ async def on_member_join(member):
     channel = client.get_channel(config.join_channel)
     await member.add_roles(role)
 
-    g = ['Welcome to hell', 'Abandon all hope, ye who enter here','The path to paradise, begins in hell', 'Heaven might shine bright, but so do flames']
+    g = ['Welcome to hell', 'Abandon all hope, ye who enter here','The path to paradise, begins in hell', 'Heaven may shine bright, but so do flames']
     await channel.send(f"{random.choice(g)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
 
 @client.command()
@@ -73,6 +74,7 @@ async def verify(ctx, link):
     tainted = response['ranked_and_approved_beatmapset_count']
 
     # perhaps simplify this
+    role0 = discord.utils.get(ctx.guild.roles, name="Newcomers")
     role1 = discord.utils.get(ctx.guild.roles, name="Graveyard Rookie (<5 Maps)")
     role2 = discord.utils.get(ctx.guild.roles, name="Graveyard Amateur (5-15 Maps)")
     role3 = discord.utils.get(ctx.guild.roles, name="Graveyard Adept (15-30 Maps)")
@@ -94,6 +96,8 @@ async def verify(ctx, link):
     elif graved in range(50,666):
         await ctx.author.add_roles(role5)
 
+    await ctx.author.remove_roles(role0)
+
     e = discord.Embed(title = f"User Verified!")
     e.add_field(name = "Username", value = response['username'], inline=False)
     avatar_url = response['avatar_url']
@@ -107,9 +111,11 @@ async def roll(ctx):
     ''' Roll one of the three goblins. Use: !roll '''
     await ctx.send("You've rolled: "+random.choice([':japanese_goblin:', '<:ungoblin:777794404106502154>', '<:overgoblin:780773006829551617>']))
 
+### START DOWNLOAD FUNCTION
 @client.command()
-async def test(ctx):
-    ''' Test '''
-    await ctx.send("Absolute state of Linux <:tux:775785821768122459>")
+async def download(ctx, song):
+    ''' Graveyard Gamer Maneuver™ '''
+    await ctx.send(song)
+### END DOWNLOAD FUNCTION
 
 client.run(config.discord_token)
