@@ -2,32 +2,36 @@ import discord, os, urllib.request, json, random, asyncio, requests, re
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
 import config
-import datetime
+from database import Database
+from datetime import datetime, timedelta
 
 intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix=config.prefix, intents=intents)
 
-# TODO: persist token
-token_cache = {
-    "token": "dummy",
-    "expiry_date": datetime.datetime(1,1,1)
-}
+db = Database("secrets.db")
+db.execute("create table if not exists tokens (name text unique, value text, expiry_date text default \"0001-01-01 00:00:00.000000\")")
 
 ### Helper functions
 
 def getToken():
-    now = datetime.datetime.today()
-    if token_cache["expiry_date"] <= now:
+    now = datetime.today()
+    ret = db.tokens["osu_api"]
+    expiry_date = ret and ret.expiry_date or str(datetime.min)
+
+    if datetime.fromisoformat(expiry_date) <= now:
         url = "https://osu.ppy.sh/oauth/token"
         data = {"client_id": config.api_id,
                 "client_secret": config.api_token,
                 "grant_type": "client_credentials",
                 "scope": "public"}
         token = requests.post(url, data).json()
-        token_cache["token"] = token["access_token"]
-        token_cache["expiry_date"] = now + datetime.timedelta(seconds=token["expires_in"])
-    return token_cache["token"]
+
+        db.tokens["osu_api"] = {
+            "value": token["access_token"],
+            "expiry_date": str(now + timedelta(seconds=token["expires_in"]))
+        }
+    return db.tokens["osu_api"].value
         
 def getUser(user_id):
     token = getToken()

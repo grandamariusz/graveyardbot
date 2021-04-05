@@ -3,5 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# vim temporary files
+*~
+*.swp
+
 # Config file
 *config.py
+
+# database files
+*.db
