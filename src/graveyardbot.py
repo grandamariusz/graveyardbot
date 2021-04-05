@@ -2,12 +2,42 @@ import discord, os, urllib.request, json, random, asyncio, requests, re
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
 import config
+import datetime
 
 intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix=config.prefix, intents=intents)
 
-###################################### Event functions
+# TODO: persist token
+token_cache = {
+    "token": "dummy",
+    "expiry_date": datetime.datetime(1,1,1)
+}
+
+### Helper functions
+
+def getToken():
+    now = datetime.datetime.today()
+    if token_cache["expiry_date"] <= now:
+        url = "https://osu.ppy.sh/oauth/token"
+        data = {"client_id": config.api_id,
+                "client_secret": config.api_token,
+                "grant_type": "client_credentials",
+                "scope": "public"}
+        token = requests.post(url, data).json()
+        token_cache["token"] = token["access_token"]
+        token_cache["expiry_date"] = now + datetime.timedelta(seconds=token["expires_in"])
+    return token_cache["token"]
+        
+def getUser(user_id):
+    token = getToken()
+
+    user = "https://osu.ppy.sh/api/v2/users/"+user_id+"/osu"
+    b = "Bearer "+token
+    return requests.get(user, headers={"Authorization": b}).json()
+
+### Event functions
+
 @client.event
 async def on_ready():
     print("I'm ready")
@@ -31,16 +61,7 @@ async def channel(ctx):
 async def user(ctx, user_id):
     '''User details. Use: !user <user_id>'''
 
-    url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': config.api_id,
-            'client_secret': config.api_token,
-            'grant_type': 'client_credentials',
-            'scope': 'public'}
-    token = requests.post(url, data).json()
-
-    user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    b = 'Bearer '+ token['access_token']
-    response = requests.get(user, headers={'Authorization': b}).json()
+    response = getUser(user_id);
 
     e = discord.Embed(title = f"User Details")
     e.add_field(name = "Username", value = response['username'])
@@ -54,45 +75,32 @@ async def user(ctx, user_id):
 
 @client.command()
 async def verify(ctx, link):
-    '''Verify an user. Use: !verify <link_to_your_osu_profile>'''
-    regex = re.search(r'(?P<id>\d+)', link)
-    user_id = regex.group('id')
+    '''Verify a user. Use: !verify <link_to_your_osu_profile>'''
+    regex = re.search(r"(?P<id>\d+)", link)
+    user_id = regex.group("id")
 
-    # split this into another function
-    url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': config.api_id,
-            'client_secret': config.api_token,
-            'grant_type': 'client_credentials',
-            'scope': 'public'}
-    token = requests.post(url, data).json()
+    response = getUser(user_id);
 
-    user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    b = 'Bearer '+token['access_token']
-    response = requests.get(user, headers={'Authorization': b}).json()
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
 
-    # perhaps simplify this
-    role1 = discord.utils.get(ctx.guild.roles, name="Graveyard Rookie (<5 Maps)")
-    role2 = discord.utils.get(ctx.guild.roles, name="Graveyard Amateur (5-15 Maps)")
-    role3 = discord.utils.get(ctx.guild.roles, name="Graveyard Adept (15-30 Maps)")
-    role4 = discord.utils.get(ctx.guild.roles, name="Graveyard Veteran (30-50 Maps)")
-    role5 = discord.utils.get(ctx.guild.roles, name="Graveyard Revenant (50+ Maps)")
-    role6 = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
-
-    print(ctx.author.roles)
+    roles = [
+        { "name": "Graveyard Rookie (<5 Maps)", "condition": lambda x : x >= 0 or x < 5 },
+        { "name": "Graveyard Amateur (5-15 Maps)", "condition": lambda x : x >= 5 or x < 15 },
+        { "name": "Graveyard Adept (15-30 Maps)", "condition": lambda x : x >= 15 or x < 30 },
+        { "name": "Graveyard Veteran (30-50 Maps)", "condition": lambda x : x >= 30 or x < 50 },
+        { "name": "Graveyard Revenant (50+ Maps)", "condition": lambda x : x >= 50 }
+    ]
+    
     if tainted > 0:
-        await ctx.author.add_roles(role6)
-    elif graved in range(0,5):
-        await ctx.author.add_roles(role1)
-    elif graved in range(5,15):
-        await ctx.author.add_roles(role2)
-    elif graved in range(15,30):
-        await ctx.author.add_roles(role3)
-    elif graved in range(30,50):
-        await ctx.author.add_roles(role4)
-    elif graved in range(50,666):
-        await ctx.author.add_roles(role5)
+        role = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
+        await ctx.author.add_roles(role)
+    else:
+        for r in roles:
+            if r["condition"](graved):
+                role = discord.utils.get(ctx.guild.roles, name=r["name"])
+                await ctx.author.add_roles(role)
+                break
 
     e = discord.Embed(title = f"User Verified!")
     e.add_field(name = "Username", value = response['username'], inline=False)
