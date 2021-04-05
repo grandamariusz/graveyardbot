@@ -2,7 +2,6 @@ import discord, os, urllib.request, json, random, asyncio, requests, re
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
 import config
-import musicbrainzngs as m
 
 intents = discord.Intents.default()
 intents.members = True
