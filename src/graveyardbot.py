@@ -117,4 +117,24 @@ async def download(ctx, song):
     await ctx.send(song)
 ### END DOWNLOAD FUNCTION
 
+### START ADMIN FUNCTIONS
+@client.command()
+@commands.has_role("Admin")
+async def kick(ctx, member:discord.Member):
+    ''' Kicks a member. Use: !kick <@user> '''
+    await member.kick()
+    channel = client.get_channel(config.announce_channel)
+    punishment = ['has been convicted to serve a sentence of 87 years in the 86th dimension.', 'received an all-expenses-paid vacation into purgatory.']
+    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(punishment)}** <:tux:775785821768122459>")
+
+@client.command()
+@commands.has_role("Admin")
+async def ban(ctx, member:discord.Member):
+    ''' Bans a member. Use: !ban <@user> '''
+    await member.ban()
+    channel = client.get_channel(config.announce_channel)
+    punishment = ['has been irreversibly purged.', 'was eradicated by the goblin council.', 'just got their ass exiled!', 'decided to run the command: `sudo rm -rf /` ...whoops!']
+    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(punishment)}** <:tux:775785821768122459>")
+### END ADMIN FUNCTIONS
+
 client.run(config.discord_token)
