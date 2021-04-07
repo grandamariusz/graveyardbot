@@ -15,22 +15,22 @@ async def on_ready():
 async def on_member_join(member):
     channel = client.get_channel(config.join_channel)
     await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
-    g = ['Welcome to hell', 'Abandon all hope, ye who enter here','The path to paradise, begins in hell', 'Heaven may shine bright, but so do flames']
-    await channel.send(f"{random.choice(g)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
+    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
 
-@client.command()
-async def user(ctx, user_id):
-    '''User details. Use: !user <user_id>'''
-
+async def return_token():
     url = 'https://osu.ppy.sh/oauth/token'
     data = {'client_id': config.api_id,
             'client_secret': config.api_token,
             'grant_type': 'client_credentials',
             'scope': 'public'}
     token = requests.post(url, data).json()
+    return token['access_token']
 
+@client.command()
+async def user(ctx, user_id):
+    '''User details. Use: !user <user_id>'''
     user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    b = 'Bearer '+ token['access_token']
+    b = 'Bearer '+ return_token()
     response = requests.get(user, headers={'Authorization': b}).json()
 
     e = discord.Embed(title = f"User Details")
@@ -47,18 +47,8 @@ async def user(ctx, user_id):
 async def verify(ctx, link):
     '''Verify an user. Use: !verify <link_to_your_osu_profile>'''
     regex = re.search(r'(?P<id>\d+)', link)
-    user_id = regex.group('id')
-
-    # split this into another function
-    url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': config.api_id,
-            'client_secret': config.api_token,
-            'grant_type': 'client_credentials',
-            'scope': 'public'}
-    token = requests.post(url, data).json()
-
-    user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    b = 'Bearer '+token['access_token']
+    user = 'https://osu.ppy.sh/api/v2/users/'+regex.group('id')+'/osu'
+    b = 'Bearer ' + return_token()
     response = requests.get(user, headers={'Authorization': b}).json()
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
@@ -96,7 +86,7 @@ async def verify(ctx, link):
 @client.command()
 async def roll(ctx):
     ''' Roll one of the three goblins. Use: !roll '''
-    await ctx.send("You've rolled: "+random.choice([':japanese_goblin:', '<:ungoblin:777794404106502154>', '<:overgoblin:780773006829551617>']))
+    await ctx.send("You've rolled: "+random.choice(config.goblins))
 
 ### START DOWNLOAD FUNCTION
 @client.command()
@@ -112,8 +102,7 @@ async def kick(ctx, member:discord.Member):
     ''' Kicks a member. Use: !kick <@user> '''
     await member.kick()
     channel = client.get_channel(config.announce_channel)
-    punishment = ['has been convicted to serve a sentence of 87 years in the 86th dimension.', 'received an all-expenses-paid vacation into purgatory.']
-    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(punishment)}** <:tux:775785821768122459>")
+    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
 
 @client.command()
 @commands.has_role("Admin")
@@ -121,8 +110,7 @@ async def ban(ctx, member:discord.Member):
     ''' Bans a member. Use: !ban <@user> '''
     await member.ban()
     channel = client.get_channel(config.announce_channel)
-    punishment = ['has been irreversibly purged.', 'was eradicated by the goblin council.', 'just got their ass exiled!', 'decided to run the command: `sudo rm -rf /` ...whoops!']
-    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(punishment)}** <:tux:775785821768122459>")
+    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(ban_punishment)}** <:tux:775785821768122459>")
 ### END ADMIN FUNCTIONS
 
 client.run(config.discord_token)
