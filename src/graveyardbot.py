@@ -10,25 +10,12 @@ client = commands.Bot(command_prefix=config.prefix, intents=intents)
 tmp_token=''
 date=''
 
-@client.event
-async def on_ready():
-    print("I'm ready")
-    await client.change_presence(status=discord.Status.idle, activity=discord.Game(name="87th dimension"))
-
-@client.event
-async def on_member_join(member):
-    channel = client.get_channel(config.join_channel)
-    await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
-    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <osu_username>` to get verified!")
-
 async def return_token():
+	'''return temporary token / retrieve new token'''
     global tmp_token
     global date
     url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': config.api_id,
-            'client_secret': config.api_token,
-            'grant_type': 'client_credentials',
-            'scope': 'public'}
+    data = {'client_id': config.api_id,'client_secret': config.api_token,'grant_type': 'client_credentials','scope': 'public'}
     
     if tmp_token:
         if datetime.now().timestamp() - date >= 86000:
@@ -45,11 +32,21 @@ async def return_token():
         date = datetime.now().timestamp()
         return tmp_token['access_token']
 
+@client.event
+async def on_ready():
+    print("I'm ready")
+    await client.change_presence(status=discord.Status.idle, activity=discord.Game(name="87th dimension"))
+
+@client.event
+async def on_member_join(member):
+    channel = client.get_channel(config.join_channel)
+    await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
+    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <osu_username>` to get verified!")
+
 @client.command()
 async def user(ctx, user_id):
     '''User details. Use: !user <osu_username>'''
-    user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    response = requests.get(user, headers={'Authorization': 'Bearer '+ await return_token()}).json()
+    response = requests.get('https://osu.ppy.sh/api/v2/users/'+user_id+'/osu', headers={'Authorization': 'Bearer '+ await return_token()}).json()
     e = discord.Embed(title = f"User Details")
     e.add_field(name = "Username", value = response['username'])
     e.add_field(name = "Online", value = ':green_circle:' if response['is_online'] else ':red_circle:')
@@ -63,8 +60,7 @@ async def user(ctx, user_id):
 @client.command()
 async def verify(ctx, user):
     '''Verify an user. Use: !verify <osu_username>'''
-    user = 'https://osu.ppy.sh/api/v2/users/'+user+'/osu'
-    response = requests.get(user, headers={'Authorization': 'Bearer ' + await return_token()}).json()
+    response = requests.get('https://osu.ppy.sh/api/v2/users/'+user+'/osu', headers={'Authorization': 'Bearer ' + await return_token()}).json()
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
 
