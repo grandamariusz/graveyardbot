@@ -1,10 +1,14 @@
 import discord, os, urllib.request, json, random, asyncio, requests, re, config
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
+from datetime import datetime
 
 intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix=config.prefix, intents=intents)
+
+tmp_token=''
+date=''
 
 @client.event
 async def on_ready():
@@ -23,8 +27,18 @@ async def return_token():
             'client_secret': config.api_token,
             'grant_type': 'client_credentials',
             'scope': 'public'}
-    token = requests.post(url, data).json()
-    return token['access_token']
+    
+    if tmp_token:
+        if datetime.now().timestamp() - date >= 86000:
+            tmp_token = requests.post(url, data).json()
+            date = datetime.now().timestamp()
+            return tmp_token
+        else:
+            return tmp_token
+    else:
+        tmp_token = requests.post(url, data).json()
+        date = datetime.now().timestamp()
+        return tmp_token
 
 @client.command()
 async def user(ctx, user_id):
@@ -73,7 +87,7 @@ async def verify(ctx, link):
         await ctx.author.add_roles(role4)
     elif graved in range(50,666):
         await ctx.author.add_roles(role5)
-    await ctx.author.remove_roles(discord.utils.get(ctx.guild.roles, name="Newcomers")
+    await ctx.author.remove_roles(discord.utils.get(ctx.guild.roles, name="Newcomers"))
 
     e = discord.Embed(title = f"User Verified!")
     e.add_field(name = "Username", value = response['username'], inline=False)
