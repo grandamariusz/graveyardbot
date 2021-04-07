@@ -2,6 +2,7 @@ import discord, os, urllib.request, json, random, asyncio, requests, re, config
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
 from datetime import datetime
+import musicbrainzngs as mb
 
 intents = discord.Intents.default()
 intents.members = True
@@ -11,7 +12,7 @@ tmp_token=''
 date=''
 
 async def return_token():
-	'''return temporary token / retrieve new token'''
+    '''return temporary token / retrieve new token'''
     global tmp_token
     global date
     url = 'https://osu.ppy.sh/oauth/token'
@@ -103,7 +104,9 @@ async def roll(ctx):
 @client.command()
 async def download(ctx, song):
     ''' Graveyard Gamer Maneuver™ '''
-    await ctx.send(song)
+    mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
+    result = mb.search_works(work=song, limit=5)
+    print(json.dumps(result, indent=4))
 ### END DOWNLOAD FUNCTION
 
 ### START ADMIN FUNCTIONS
