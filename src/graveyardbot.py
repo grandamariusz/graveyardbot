@@ -1,13 +1,15 @@
-import discord, os, urllib.request, json, random, asyncio, requests, re
+import discord, os, urllib.request, json, random, asyncio, requests, re, config
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
-import config
+from datetime import datetime
 
 intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix=config.prefix, intents=intents)
 
-###################################### Event functions
+tmp_token=''
+date=''
+
 @client.event
 async def on_ready():
     print("I'm ready")
@@ -15,33 +17,39 @@ async def on_ready():
 
 @client.event
 async def on_member_join(member):
-    role = discord.utils.get(member.guild.roles, name="Newcomers")
     channel = client.get_channel(config.join_channel)
-    await member.add_roles(role)
+    await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
+    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
 
-    g = ['Welcome to hell', 'Abandon all hope, ye who enter here','The path to paradise, begins in hell', 'Heaven may shine bright, but so do flames']
-    await channel.send(f"{random.choice(g)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
-
-@client.command()
-async def channel(ctx):
-    '''Shows the ID of channel in which this command was used'''
-    await ctx.send("Channel ID: "+str(ctx.message.channel.id))
-
-@client.command()
-async def user(ctx, user_id):
-    '''User details. Use: !user <user_id>'''
-
+async def return_token():
+    global tmp_token
+    global date
     url = 'https://osu.ppy.sh/oauth/token'
     data = {'client_id': config.api_id,
             'client_secret': config.api_token,
             'grant_type': 'client_credentials',
             'scope': 'public'}
-    token = requests.post(url, data).json()
+    
+    if tmp_token:
+        if datetime.now().timestamp() - date >= 86000:
+            print("Token older than 30 seconds, retrieving new one")
+            tmp_token = requests.post(url, data).json()
+            date = datetime.now().timestamp()
+            return tmp_token['access_token']
+        else:
+            print("Using token retrieved earlier")
+            return tmp_token['access_token']
+    else:
+        print("Retrieving new token")
+        tmp_token = requests.post(url, data).json()
+        date = datetime.now().timestamp()
+        return tmp_token['access_token']
 
+@client.command()
+async def user(ctx, user_id):
+    '''User details. Use: !user <user_id>'''
     user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    b = 'Bearer '+ token['access_token']
-    response = requests.get(user, headers={'Authorization': b}).json()
-
+    response = requests.get(user, headers={'Authorization': 'Bearer '+ await return_token()}).json()
     e = discord.Embed(title = f"User Details")
     e.add_field(name = "Username", value = response['username'])
     e.add_field(name = "Online", value = ':green_circle:' if response['is_online'] else ':red_circle:')
@@ -53,27 +61,14 @@ async def user(ctx, user_id):
     await ctx.send(embed = e)
 
 @client.command()
-async def verify(ctx, link):
+async def verify(ctx, user):
     '''Verify an user. Use: !verify <link_to_your_osu_profile>'''
-    regex = re.search(r'(?P<id>\d+)', link)
-    user_id = regex.group('id')
-
-    # split this into another function
-    url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': config.api_id,
-            'client_secret': config.api_token,
-            'grant_type': 'client_credentials',
-            'scope': 'public'}
-    token = requests.post(url, data).json()
-
-    user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    b = 'Bearer '+token['access_token']
-    response = requests.get(user, headers={'Authorization': b}).json()
+    user = 'https://osu.ppy.sh/api/v2/users/'+user+'/osu'
+    response = requests.get(user, headers={'Authorization': 'Bearer ' + await return_token()}).json()
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
 
     # perhaps simplify this
-    role0 = discord.utils.get(ctx.guild.roles, name="Newcomers")
     role1 = discord.utils.get(ctx.guild.roles, name="Graveyard Rookie (<5 Maps)")
     role2 = discord.utils.get(ctx.guild.roles, name="Graveyard Amateur (5-15 Maps)")
     role3 = discord.utils.get(ctx.guild.roles, name="Graveyard Adept (15-30 Maps)")
@@ -81,7 +76,6 @@ async def verify(ctx, link):
     role5 = discord.utils.get(ctx.guild.roles, name="Graveyard Revenant (50+ Maps)")
     role6 = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
 
-    print(ctx.author.roles)
     if tainted > 0:
         await ctx.author.add_roles(role6)
     elif graved in range(0,5):
@@ -94,8 +88,7 @@ async def verify(ctx, link):
         await ctx.author.add_roles(role4)
     elif graved in range(50,666):
         await ctx.author.add_roles(role5)
-
-    await ctx.author.remove_roles(role0)
+    await ctx.author.remove_roles(discord.utils.get(ctx.guild.roles, name="Newcomers"))
 
     e = discord.Embed(title = f"User Verified!")
     e.add_field(name = "Username", value = response['username'], inline=False)
@@ -108,7 +101,7 @@ async def verify(ctx, link):
 @client.command()
 async def roll(ctx):
     ''' Roll one of the three goblins. Use: !roll '''
-    await ctx.send("You've rolled: "+random.choice([':japanese_goblin:', '<:ungoblin:777794404106502154>', '<:overgoblin:780773006829551617>']))
+    await ctx.send("You've rolled: "+random.choice(config.goblins))
 
 ### START DOWNLOAD FUNCTION
 @client.command()
@@ -124,8 +117,7 @@ async def kick(ctx, member:discord.Member):
     ''' Kicks a member. Use: !kick <@user> '''
     await member.kick()
     channel = client.get_channel(config.announce_channel)
-    punishment = ['has been convicted to serve a sentence of 87 years in the 86th dimension.', 'received an all-expenses-paid vacation into purgatory.']
-    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(punishment)}** <:tux:775785821768122459>")
+    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
 
 @client.command()
 @commands.has_role("Admin")
@@ -133,8 +125,7 @@ async def ban(ctx, member:discord.Member):
     ''' Bans a member. Use: !ban <@user> '''
     await member.ban()
     channel = client.get_channel(config.announce_channel)
-    punishment = ['has been irreversibly purged.', 'was eradicated by the goblin council.', 'just got their ass exiled!', 'decided to run the command: `sudo rm -rf /` ...whoops!']
-    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(punishment)}** <:tux:775785821768122459>")
+    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(ban_punishment)}** <:tux:775785821768122459>")
 ### END ADMIN FUNCTIONS
 
 client.run(config.discord_token)
