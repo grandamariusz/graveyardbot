@@ -19,7 +19,7 @@ async def on_ready():
 async def on_member_join(member):
     channel = client.get_channel(config.join_channel)
     await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
-    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
+    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <osu_username>` to get verified!")
 
 async def return_token():
     global tmp_token
@@ -47,7 +47,7 @@ async def return_token():
 
 @client.command()
 async def user(ctx, user_id):
-    '''User details. Use: !user <user_id>'''
+    '''User details. Use: !user <osu_username>'''
     user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
     response = requests.get(user, headers={'Authorization': 'Bearer '+ await return_token()}).json()
     e = discord.Embed(title = f"User Details")
@@ -62,7 +62,7 @@ async def user(ctx, user_id):
 
 @client.command()
 async def verify(ctx, user):
-    '''Verify an user. Use: !verify <link_to_your_osu_profile>'''
+    '''Verify an user. Use: !verify <osu_username>'''
     user = 'https://osu.ppy.sh/api/v2/users/'+user+'/osu'
     response = requests.get(user, headers={'Authorization': 'Bearer ' + await return_token()}).json()
     graved = response['graveyard_beatmapset_count']
