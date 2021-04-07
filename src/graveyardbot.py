@@ -22,6 +22,8 @@ async def on_member_join(member):
     await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
 
 async def return_token():
+    global tmp_token
+    global date
     url = 'https://osu.ppy.sh/oauth/token'
     data = {'client_id': config.api_id,
             'client_secret': config.api_token,
@@ -30,23 +32,24 @@ async def return_token():
     
     if tmp_token:
         if datetime.now().timestamp() - date >= 86000:
+            print("Token older than 30 seconds, retrieving new one")
             tmp_token = requests.post(url, data).json()
             date = datetime.now().timestamp()
-            return tmp_token
+            return tmp_token['access_token']
         else:
-            return tmp_token
+            print("Using token retrieved earlier")
+            return tmp_token['access_token']
     else:
+        print("Retrieving new token")
         tmp_token = requests.post(url, data).json()
         date = datetime.now().timestamp()
-        return tmp_token
+        return tmp_token['access_token']
 
 @client.command()
 async def user(ctx, user_id):
     '''User details. Use: !user <user_id>'''
     user = 'https://osu.ppy.sh/api/v2/users/'+user_id+'/osu'
-    b = 'Bearer '+ return_token()
-    response = requests.get(user, headers={'Authorization': b}).json()
-
+    response = requests.get(user, headers={'Authorization': 'Bearer '+ await return_token()}).json()
     e = discord.Embed(title = f"User Details")
     e.add_field(name = "Username", value = response['username'])
     e.add_field(name = "Online", value = ':green_circle:' if response['is_online'] else ':red_circle:')
@@ -58,12 +61,10 @@ async def user(ctx, user_id):
     await ctx.send(embed = e)
 
 @client.command()
-async def verify(ctx, link):
+async def verify(ctx, user):
     '''Verify an user. Use: !verify <link_to_your_osu_profile>'''
-    regex = re.search(r'(?P<id>\d+)', link)
-    user = 'https://osu.ppy.sh/api/v2/users/'+regex.group('id')+'/osu'
-    b = 'Bearer ' + return_token()
-    response = requests.get(user, headers={'Authorization': b}).json()
+    user = 'https://osu.ppy.sh/api/v2/users/'+user+'/osu'
+    response = requests.get(user, headers={'Authorization': 'Bearer ' + await return_token()}).json()
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
 
