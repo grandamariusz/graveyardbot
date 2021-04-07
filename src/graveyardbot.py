@@ -1,13 +1,11 @@
-import discord, os, urllib.request, json, random, asyncio, requests, re
+import discord, os, urllib.request, json, random, asyncio, requests, re, config
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
-import config
 
 intents = discord.Intents.default()
 intents.members = True
 client = commands.Bot(command_prefix=config.prefix, intents=intents)
 
-###################################### Event functions
 @client.event
 async def on_ready():
     print("I'm ready")
@@ -15,17 +13,10 @@ async def on_ready():
 
 @client.event
 async def on_member_join(member):
-    role = discord.utils.get(member.guild.roles, name="Newcomers")
     channel = client.get_channel(config.join_channel)
-    await member.add_roles(role)
-
+    await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
     g = ['Welcome to hell', 'Abandon all hope, ye who enter here','The path to paradise, begins in hell', 'Heaven may shine bright, but so do flames']
     await channel.send(f"{random.choice(g)}, {member.mention}\nUse `!verify <link-to-your-osu-profile>` to get verified!")
-
-@client.command()
-async def channel(ctx):
-    '''Shows the ID of channel in which this command was used'''
-    await ctx.send("Channel ID: "+str(ctx.message.channel.id))
 
 @client.command()
 async def user(ctx, user_id):
@@ -73,7 +64,6 @@ async def verify(ctx, link):
     tainted = response['ranked_and_approved_beatmapset_count']
 
     # perhaps simplify this
-    role0 = discord.utils.get(ctx.guild.roles, name="Newcomers")
     role1 = discord.utils.get(ctx.guild.roles, name="Graveyard Rookie (<5 Maps)")
     role2 = discord.utils.get(ctx.guild.roles, name="Graveyard Amateur (5-15 Maps)")
     role3 = discord.utils.get(ctx.guild.roles, name="Graveyard Adept (15-30 Maps)")
@@ -81,7 +71,6 @@ async def verify(ctx, link):
     role5 = discord.utils.get(ctx.guild.roles, name="Graveyard Revenant (50+ Maps)")
     role6 = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
 
-    print(ctx.author.roles)
     if tainted > 0:
         await ctx.author.add_roles(role6)
     elif graved in range(0,5):
@@ -94,8 +83,7 @@ async def verify(ctx, link):
         await ctx.author.add_roles(role4)
     elif graved in range(50,666):
         await ctx.author.add_roles(role5)
-
-    await ctx.author.remove_roles(role0)
+    await ctx.author.remove_roles(discord.utils.get(ctx.guild.roles, name="Newcomers")
 
     e = discord.Embed(title = f"User Verified!")
     e.add_field(name = "Username", value = response['username'], inline=False)
