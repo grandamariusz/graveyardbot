@@ -96,11 +96,6 @@ async def verify(ctx, user):
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
     
-''' 
-@client.event
-async def on_raw_reaction_add(payload):
-'''      
-
 @client.command(pass_context=True)
 async def roll(ctx):
     ''' Roll one of the three goblins. Use: !roll '''
@@ -110,18 +105,10 @@ async def roll(ctx):
         await message.add_reaction(emoji)
         
     def checkReaction(reaction, user):
-        user_that_sent = ctx.message.author.name+"#"+ctx.message.author.discriminator
-        print(type(user))
         return user != client.user and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
     
     reaction, user = await client.wait_for("reaction_add", check=checkReaction)
-    
-    if str(reaction.emoji) == '✅':
-        await ctx.send("<:tux:775785821768122459>")
-    elif str(reaction.emoji) == '❌':
-        await ctx.send("Not Pog")
-    print(message.id)
-
+    await ctx.send("<:tux:775785821768122459>") if str(reaction.emoji) == '✅' else await ctx.send("Not Pog")
 
 ### START DOWNLOAD FUNCTION
 @client.command()
