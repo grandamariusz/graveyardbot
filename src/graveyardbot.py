@@ -138,7 +138,7 @@ async def ban(ctx, member:discord.Member):
     ''' Bans a member. Use: !ban <@user> '''
     await member.ban()
     channel = client.get_channel(config.announce_channel)
-    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(ban_punishment)}** <:tux:775785821768122459>")
+    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
 ### END ADMIN FUNCTIONS
 
 client.run(config.discord_token)
