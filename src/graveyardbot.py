@@ -6,6 +6,7 @@ import musicbrainzngs as mb
 
 intents = discord.Intents.default()
 intents.members = True
+intents.reactions = True
 client = commands.Bot(command_prefix=config.prefix, intents=intents)
 
 tmp_token=''
@@ -94,11 +95,33 @@ async def verify(ctx, user):
         avatar_url = 'https://osu.ppy.sh' + avatar_url
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
+    
+''' 
+@client.event
+async def on_raw_reaction_add(payload):
+'''      
 
-@client.command()
+@client.command(pass_context=True)
 async def roll(ctx):
     ''' Roll one of the three goblins. Use: !roll '''
-    await ctx.send("You've rolled: "+random.choice(config.goblins))
+    message = await ctx.send("Rolled")
+    emojis = ["✅","❌"]
+    for emoji in emojis:
+        await message.add_reaction(emoji)
+        
+    def checkReaction(reaction, user):
+        user_that_sent = ctx.message.author.name+"#"+ctx.message.author.discriminator
+        print(type(user))
+        return user != client.user and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
+    
+    reaction, user = await client.wait_for("reaction_add", check=checkReaction)
+    
+    if str(reaction.emoji) == '✅':
+        await ctx.send("<:tux:775785821768122459>")
+    elif str(reaction.emoji) == '❌':
+        await ctx.send("Not Pog")
+    print(message.id)
+
 
 ### START DOWNLOAD FUNCTION
 @client.command()
