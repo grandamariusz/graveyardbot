@@ -102,26 +102,36 @@ async def roll(ctx):
 
 ### START DOWNLOAD FUNCTION
 @client.command()
-async def download(ctx, *args):
+async def download(ctx, *, input: str):
     ''' Graveyard Gamer Maneuver™ '''
+    args = input.split()
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
     result = mb.search_recordings(query=" AND ".join(args), limit=5)
     print(json.dumps(result, indent=4))
     song_title = result["recording-list"][0]["title"]
     artist_name = result["recording-list"][0]["artist-credit"][0]["name"]
     album_title = result["recording-list"][0]["release-list"][0]["release-group"]["title"]
-    cover_art = mb.get_image_list(result["recording-list"][0]["release-list"][0]["id"])
-    link = requests.get(cover_art["images"][0]["thumbnails"]["small"])
+    found = False
+    e = discord.Embed(title = f"Song Found!")
+    for release in result["recording-list"][0]["release-list"]:
+        try:
+            cover_art = mb.get_image_list(release["id"])
+            link = requests.get(cover_art["images"][0]["thumbnails"]["small"])
+            print(json.dumps(cover_art, indent=4))
+            print(link.url)
+            e.set_thumbnail(url=link.url)
+            found = True
+            break
+        except Exception:
+            pass
+    if not found:
+        print("cover art not found")
     print(song_title)
     print(artist_name)
     print(album_title)
-    print(json.dumps(cover_art, indent=4))
-    print(link.url)
-    e = discord.Embed(title = f"Song Found!")
     e.add_field(name = "Title", value = song_title, inline = False)
     e.add_field(name = "Artist", value = artist_name, inline = False)
     e.add_field(name = "Album", value = album_title, inline = False)
-    e.set_thumbnail(url=link.url)
     await ctx.send(embed = e)
 ### END DOWNLOAD FUNCTION
 
