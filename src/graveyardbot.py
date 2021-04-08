@@ -104,35 +104,23 @@ async def roll(ctx):
 @client.command()
 async def download(ctx, *, input: str):
     ''' Graveyard Gamer Maneuver™ '''
-    args = input.split()
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
-    result = mb.search_recordings(query=" AND ".join(args), limit=5)
-    print(json.dumps(result, indent=4))
-    song_title = result["recording-list"][0]["title"]
-    artist_name = result["recording-list"][0]["artist-credit"][0]["name"]
-    album_title = result["recording-list"][0]["release-list"][0]["release-group"]["title"]
-    found = False
-    e = discord.Embed(title = f"Song Found!")
-    for release in result["recording-list"][0]["release-list"]:
-        try:
-            cover_art = mb.get_image_list(release["id"])
-            link = requests.get(cover_art["images"][0]["thumbnails"]["small"])
-            print(json.dumps(cover_art, indent=4))
-            print(link.url)
-            e.set_thumbnail(url=link.url)
-            found = True
-            break
-        except Exception:
-            pass
-    if not found:
-        print("cover art not found")
-    print(song_title)
-    print(artist_name)
-    print(album_title)
-    e.add_field(name = "Title", value = song_title, inline = False)
-    e.add_field(name = "Artist", value = artist_name, inline = False)
-    e.add_field(name = "Album", value = album_title, inline = False)
-    await ctx.send(embed = e)
+    result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
+    if (result["recording-list"]):
+        e = discord.Embed(title = f"Song Found!")
+        e.add_field(name = "Title", value = result["recording-list"][0]["title"], inline = False)
+        e.add_field(name = "Artist", value = result["recording-list"][0]["artist-credit"][0]["name"], inline = False)
+
+        for release in result["recording-list"][0]["release-list"]:
+            try:
+                e.set_thumbnail(url=requests.get(mb.get_image_list(release["id"])["images"][0]["thumbnails"]["small"]).url)
+                e.add_field(name = "Album", value = release["release-group"]["title"], inline = False)
+                break
+            except Exception:
+                pass
+        await ctx.send(embed = e)
+    else:
+        await ctx.send("**Song not found!**")
 ### END DOWNLOAD FUNCTION
 
 ### START ADMIN FUNCTIONS
