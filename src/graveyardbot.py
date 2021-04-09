@@ -116,15 +116,31 @@ async def download(ctx, *, input: str):
     ''' Graveyard Gamer Maneuver™ '''
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
+    print(json.dumps(result, indent=4))
     if (result["recording-list"]):
         e = discord.Embed(title = f"Song Found!")
-        e.add_field(name = "Title", value = result["recording-list"][0]["title"], inline = False)
-        e.add_field(name = "Artist", value = result["recording-list"][0]["artist-credit"][0]["name"], inline = False)
-
+        '''
+        albums = result["recording-list"][0]["release-list"]
+        albums_iter=iter(albums)
+        while (True) :           
+            next_val = next(albums_iter,'end') 
+            # if there are no more values in iterator, break the loop
+            if next_val == 'end': 
+                break
+            else :
+                print ("\nNext Val: ") 
+                print (json.dumps(next_val, indent=4)) 
+        '''
         for release in result["recording-list"][0]["release-list"]:
             try:
-                e.set_thumbnail(url=requests.get(mb.get_image_list(release["id"])["images"][0]["thumbnails"]["small"]).url)
-                e.add_field(name = "Album", value = release["release-group"]["title"], inline = False)
+                try:    
+                    e.set_thumbnail(url=requests.get(mb.get_release_group_image_list(release["release-group"]["id"])["images"][0]["image"]).url)
+                except Exception:
+                    e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
+                    pass
+                e.add_field(name = "Title", value = result["recording-list"][0]["title"], inline = False)
+                e.add_field(name = "Artist", value = result["recording-list"][0]["artist-credit"][0]["name"], inline = False)
+                e.add_field(name = "Album", value = release["release-group"]["title"], inline = False) 
                 break
             except Exception:
                 pass
