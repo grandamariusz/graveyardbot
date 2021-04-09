@@ -118,9 +118,9 @@ async def download(ctx, *, input: str):
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
     print(json.dumps(result, indent=4))
     if (result["recording-list"]):
-        e = discord.Embed(title = "Song has been found!", description = f"Album ({1} / {str(len(albums))}", color = 0x2ecc71)
-        '''
         albums = result["recording-list"][0]["release-list"]
+        e = discord.Embed(title = "Song has been found!", description = f"Album ({1}/{str(len(albums))})", color = 0x2ecc71)
+        '''
         albums_iter=iter(albums)
         while (True) :           
             next_val = next(albums_iter,'end') 
