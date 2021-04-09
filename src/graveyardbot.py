@@ -118,7 +118,7 @@ async def download(ctx, *, input: str):
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
     print(json.dumps(result, indent=4))
     if (result["recording-list"]):
-        e = discord.Embed(title = f"Song Found!")
+        e = discord.Embed(title = "Song has been found!", description = f"Album ({1} / {str(len(albums))}", color = 0x2ecc71)
         '''
         albums = result["recording-list"][0]["release-list"]
         albums_iter=iter(albums)
@@ -129,7 +129,7 @@ async def download(ctx, *, input: str):
                 break
             else :
                 print ("\nNext Val: ") 
-                print (json.dumps(next_val, indent=4)) 
+                print (json.dumps(next_val, indent=4))
         '''
         for release in result["recording-list"][0]["release-list"]:
             try:
@@ -146,7 +146,9 @@ async def download(ctx, *, input: str):
                 pass
         await ctx.send(embed = e)
     else:
-        await ctx.send("**Song not found!**")
+        #await ctx.send("**Song not found!**")
+        e = discord.Embed(title = "Song not found", color = 0xff3232)
+        await ctx.send(embed = e)
 ### END DOWNLOAD FUNCTION
 
 ### START ADMIN FUNCTIONS
