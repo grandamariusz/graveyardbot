@@ -120,17 +120,7 @@ async def download(ctx, *, input: str):
     if (result["recording-list"]):
         albums = result["recording-list"][0]["release-list"]
         e = discord.Embed(title = "Song has been found!", description = f"Album ({1}/{str(len(albums))})", color = 0x2ecc71)
-        '''
-        albums_iter=iter(albums)
-        while (True) :           
-            next_val = next(albums_iter,'end') 
-            # if there are no more values in iterator, break the loop
-            if next_val == 'end': 
-                break
-            else :
-                print ("\nNext Val: ") 
-                print (json.dumps(next_val, indent=4))
-        '''
+
         for release in result["recording-list"][0]["release-list"]:
             try:
                 try:    
@@ -151,6 +141,43 @@ async def download(ctx, *, input: str):
         await ctx.send(embed = e)
 ### END DOWNLOAD FUNCTION
 
+### START DOWNLOAD FUNCTION
+async def parse_artists(artist_credit):
+    s = ""
+    for entry in artist_credit:
+        if type(entry) is dict:
+            s += f'{entry["artist"]["sort-name"]}'
+        else:
+            s += entry
+    return s
+        
+@client.command()
+async def dl(ctx, *, input: str):
+    ''' Graveyard Gamer Maneuver™ '''
+    mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
+    result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)   
+    if (result["recording-list"]):
+        for recording in result["recording-list"]:
+            e = discord.Embed(title = "Song has been found!", description = f"Album ()", color = 0x2ecc71)
+
+            song = recording['title']
+            artists = await parse_artists(recording["artist-credit"])
+            print(f"Song: {song}")
+            print(f"Artist credit: {artists}")
+            e.add_field(name = "Song", value = song, inline = False)
+            e.add_field(name = "Artist", value = artists, inline = False)
+
+            print(json.dumps(recording, indent=4))       
+            c = 1
+            for release in recording["release-list"]:
+                print(f'Album {c} title: {release["title"]}')
+                c = c + 1
+            await ctx.send(embed = e)
+            print("\n")
+    else:
+        e = discord.Embed(title = "Song not found", color = 0xff3232)
+        await ctx.send(embed = e)
+
 ### START ADMIN FUNCTIONS
 @client.command()
 @commands.has_role("Admin")
@@ -168,5 +195,17 @@ async def ban(ctx, member:discord.Member):
     channel = client.get_channel(config.announce_channel)
     await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
 ### END ADMIN FUNCTIONS
+
+'''
+albums_iter=iter(albums)
+while (True) :           
+next_val = next(albums_iter,'end') 
+# if there are no more values in iterator, break the loop
+if next_val == 'end': 
+break
+else :
+print ("\nNext Val: ") 
+print (json.dumps(next_val, indent=4))
+'''
 
 client.run(config.discord_token)
