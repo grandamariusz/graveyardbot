@@ -105,10 +105,11 @@ async def roll(ctx):
         await message.add_reaction(emoji)
         
     def checkReaction(reaction, user):
-        return user != client.user and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
-    
+        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
     reaction, user = await client.wait_for("reaction_add", check=checkReaction)
-    await ctx.send("<:tux:775785821768122459>") if str(reaction.emoji) == '✅' else await ctx.send("Not Pog")
+    print(f"ctx: {ctx.message}\n")
+    print(f"reaction: {reaction.message}\n")
+    await ctx.send(reaction) if str(reaction.emoji) == '✅' else await ctx.send("Not Pog")
 
 ### START DOWNLOAD COMMAND
 @client.command()
@@ -159,7 +160,7 @@ async def reaction_check(ctx, message):
         await message.add_reaction(emoji)
 
     def checkReaction(reaction, user):
-        return user != client.user and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
+        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
     
     reaction, user = await client.wait_for("reaction_add", check=checkReaction)
     
