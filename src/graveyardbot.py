@@ -95,10 +95,10 @@ async def verify(ctx, user):
         avatar_url = 'https://osu.ppy.sh' + avatar_url
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
-    
+'''    
 @client.command(pass_context=True)
 async def roll(ctx):
-    ''' Roll one of the three goblins. Use: !roll '''
+    Roll one of the three goblins. Use: !roll
     message = await ctx.send("Rolled")
     emojis = ["✅","❌"]
     for emoji in emojis:
@@ -110,11 +110,12 @@ async def roll(ctx):
     print(f"ctx: {ctx.message}\n")
     print(f"reaction: {reaction.message}\n")
     await ctx.send(reaction) if str(reaction.emoji) == '✅' else await ctx.send("Not Pog")
-
+'''
+'''
 ### START DOWNLOAD COMMAND
 @client.command()
 async def download(ctx, *, input: str):
-    ''' Graveyard Gamer Maneuver™ '''
+    Graveyard Gamer Maneuver™
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
     print(json.dumps(result, indent=4))
@@ -141,6 +142,7 @@ async def download(ctx, *, input: str):
         e = discord.Embed(title = "Song not found", color = 0xff3232)
         await ctx.send(embed = e)
 ### END DOWNLOAD COMMAND
+'''
 
 ### START ARTIST PARSING FUNCTION
 async def parse_artists(artist_credit):
@@ -155,12 +157,12 @@ async def parse_artists(artist_credit):
 
 ### START REACTION CHECK FUNCTION
 async def reaction_check(ctx, message):
-    emojis = ["✅","❌"]
+    emojis = ["✅","❌","⏩"]
     for emoji in emojis:
         await message.add_reaction(emoji)
 
     def checkReaction(reaction, user):
-        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
+        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌' or str(reaction.emoji) == '⏩')
     
     reaction, user = await client.wait_for("reaction_add", check=checkReaction)
     
@@ -170,6 +172,9 @@ async def reaction_check(ctx, message):
     elif str(reaction.emoji) == '❌':
         #await ctx.send("Not Pog")
         return False
+    elif str(reaction.emoji) == '⏩':
+        await ctx.send("Speed up!")
+
 ### END REACTION CHECK FUNCTION
 
 ### START ANALYSIS FUNCTION
