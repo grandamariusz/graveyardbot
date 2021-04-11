@@ -169,7 +169,6 @@ async def reaction_check(ctx, message):
     elif str(reaction.emoji) == '❌':
         await ctx.send("Not Pog")
         return False
-        
 ### END REACTION CHECK FUNCTION
 
 ### START DL COMMAND
@@ -197,11 +196,14 @@ async def dl(ctx, *, input: str):
                 e.add_field(name = "Album", value = album, inline = False)
                 
                 try:
-                    redirect=requests.get(mb.get_image_list(release["id"])["images"][0]["image"]).url
+                    print("Trying CoverArtArchive")
+                    redirect=requests.get(mb.get_image_list(release["id"])["images"][0]["thumbnails"]["large"]).url
+                    print(redirect)
                     print(json.dumps(mb.get_image_list(release["id"]), indent=4))
                     e.set_thumbnail(url=redirect)
                 except Exception:
                     try:
+                        print("Trying Amazon")
                         with urllib.request.urlopen("https://musicbrainz.org/ws/2/release/"+release["id"]+"?fmt=json") as lookup:
                             json_convert = json.loads(lookup.read().decode())
                             print(json.dumps(json_convert, indent=4))
@@ -227,7 +229,7 @@ async def dl(ctx, *, input: str):
             song_counter += 1
             break
     else:
-        e = discord.Embed(title = "Song not found", color = 0xff3232)
+        e = discord.Embed(title = "Song not found!", color = 0xff3232)
         await ctx.send(embed = e)
 ### END DL COMMAND
 
