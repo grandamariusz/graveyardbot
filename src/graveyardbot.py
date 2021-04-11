@@ -110,7 +110,7 @@ async def roll(ctx):
     reaction, user = await client.wait_for("reaction_add", check=checkReaction)
     await ctx.send("<:tux:775785821768122459>") if str(reaction.emoji) == '✅' else await ctx.send("Not Pog")
 
-### START DOWNLOAD FUNCTION
+### START DOWNLOAD COMMAND
 @client.command()
 async def download(ctx, *, input: str):
     ''' Graveyard Gamer Maneuver™ '''
@@ -139,9 +139,9 @@ async def download(ctx, *, input: str):
         #await ctx.send("**Song not found!**")
         e = discord.Embed(title = "Song not found", color = 0xff3232)
         await ctx.send(embed = e)
-### END DOWNLOAD FUNCTION
+### END DOWNLOAD COMMAND
 
-### START DOWNLOAD FUNCTION
+### START ARTIST PARSING FUNCTION
 async def parse_artists(artist_credit):
     s = ""
     for entry in artist_credit:
@@ -150,35 +150,83 @@ async def parse_artists(artist_credit):
         else:
             s += entry
     return s
+### END ARTIST PARSING FUNCTION
+
+### START REACTION CHECK FUNCTION
+async def reaction_check(ctx, message):
+    emojis = ["✅","❌"]
+    for emoji in emojis:
+        await message.add_reaction(emoji)
+
+    def checkReaction(reaction, user):
+        return user != client.user and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
+    
+    reaction, user = await client.wait_for("reaction_add", check=checkReaction)
+    
+    if str(reaction.emoji) == '✅':
+        await ctx.send("<:tux:775785821768122459>")
+        return True
+    elif str(reaction.emoji) == '❌':
+        await ctx.send("Not Pog")
+        return False
         
+### END REACTION CHECK FUNCTION
+
+### START DL COMMAND
 @client.command()
 async def dl(ctx, *, input: str):
     ''' Graveyard Gamer Maneuver™ '''
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)   
-    if (result["recording-list"]):
+    if result["recording-list"]:
+        song_counter = 1
         for recording in result["recording-list"]:
-            e = discord.Embed(title = "Song has been found!", description = f"Album ()", color = 0x2ecc71)
-
             song = recording['title']
             artists = await parse_artists(recording["artist-credit"])
             print(f"Song: {song}")
             print(f"Artist credit: {artists}")
-            e.add_field(name = "Song", value = song, inline = False)
-            e.add_field(name = "Artist", value = artists, inline = False)
-
-            print(json.dumps(recording, indent=4))       
-            c = 1
+            print(json.dumps(recording, indent=4))
+            
+            album_counter = 1
             for release in recording["release-list"]:
-                print(f'Album {c} title: {release["title"]}')
-                c = c + 1
-            await ctx.send(embed = e)
+                album = release["title"]
+                print(f'Album {album_counter} title: {album}')
+                e = discord.Embed(title = "Song has been found!", description = f'Song ({song_counter}/{str(len(result["recording-list"]))}), Album ({album_counter}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
+                e.add_field(name = "Song", value = song, inline = False)
+                e.add_field(name = "Artist", value = artists, inline = False)
+                e.add_field(name = "Album", value = album, inline = False)
+                
+                try:
+                    redirect=requests.get(mb.get_image_list(release["id"])["images"][0]["image"]).url
+                    print(json.dumps(mb.get_image_list(release["id"]), indent=4))
+                    e.set_thumbnail(url=redirect)
+                except Exception:
+                    try:
+                        with urllib.request.urlopen("https://musicbrainz.org/ws/2/release/"+release["id"]+"?fmt=json") as lookup:
+                            json_convert = json.loads(lookup.read().decode())
+                            print(json.dumps(json_convert, indent=4))
+                            asin = json_convert["asin"]
+                            print(asin)
+                            e.set_thumbnail(url="https://images-na.ssl-images-amazon.com/images/P/"+asin+".jpg")
+                    except Exception:
+                        e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
+                        pass
+                    pass
+                
+                message = await ctx.send(embed = e)
+                if (await reaction_check(ctx, message)):
+                    break
+                else:
+                    pass
+                album_counter += 1
             print("\n")
+            song_counter += 1
     else:
         e = discord.Embed(title = "Song not found", color = 0xff3232)
         await ctx.send(embed = e)
+### END DL COMMAND
 
-### START ADMIN FUNCTIONS
+### START ADMIN COMMANDS
 @client.command()
 @commands.has_role("Admin")
 async def kick(ctx, member:discord.Member):
@@ -194,7 +242,7 @@ async def ban(ctx, member:discord.Member):
     await member.ban()
     channel = client.get_channel(config.announce_channel)
     await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
-### END ADMIN FUNCTIONS
+### END ADMIN COMMANDS
 
 '''
 albums_iter=iter(albums)
