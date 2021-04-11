@@ -215,12 +215,17 @@ async def dl(ctx, *, input: str):
                 
                 message = await ctx.send(embed = e)
                 if (await reaction_check(ctx, message)):
+                    print("BREAKING")
                     break
                 else:
                     pass
+                    print("PASSING")
                 album_counter += 1
+            else:
+                continue
             print("\n")
             song_counter += 1
+            break
     else:
         e = discord.Embed(title = "Song not found", color = 0xff3232)
         await ctx.send(embed = e)
