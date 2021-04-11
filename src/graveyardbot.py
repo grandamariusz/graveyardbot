@@ -165,10 +165,10 @@ async def reaction_check(ctx, message):
     reaction, user = await client.wait_for("reaction_add", check=checkReaction)
     
     if str(reaction.emoji) == '✅':
-        await ctx.send("<:tux:775785821768122459>")
+        #await ctx.send("<:tux:775785821768122459>")
         return True
     elif str(reaction.emoji) == '❌':
-        await ctx.send("Not Pog")
+        #await ctx.send("Not Pog")
         return False
 ### END REACTION CHECK FUNCTION
 
@@ -189,7 +189,6 @@ async def analysis(song_id, e):
         e.add_field(name = f"Key signature: {key} {scale}", value = f"Accuracy: {key_probability*100:.2f}%", inline = True)
     except Exception:
         pass
-        
 ### END ANALYSIS FUNCTION
 
 ### START DL COMMAND
@@ -212,7 +211,7 @@ async def dl(ctx, *, input: str):
                 album = release["title"]
                 print(f'Album {album_counter} title: {album}')
                 e = discord.Embed(title = "Song has been found!", description = f'Song ({song_counter}/{str(len(result["recording-list"]))}), Album ({album_counter}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
-                await analysis("5097fa26-1883-442f-aa70-2f335235b618", e)
+                await analysis(recording["id"], e)
                 e.add_field(name = "Song", value = song, inline = False)
                 e.add_field(name = "Artist", value = artists, inline = False)
                 e.add_field(name = "Album", value = album, inline = False)
@@ -244,11 +243,11 @@ async def dl(ctx, *, input: str):
                 else:
                     pass
                     print("PASSING")
-                album_counter += 1
+                album_counter += 1      
             else:
+                song_counter += 1
+                print("\n")
                 continue
-            print("\n")
-            song_counter += 1
             break
     else:
         e = discord.Embed(title = "Song not found!", color = 0xff3232)
