@@ -172,6 +172,26 @@ async def reaction_check(ctx, message):
         return False
 ### END REACTION CHECK FUNCTION
 
+### START ANALYSIS FUNCTION
+async def analysis(song_id, e):
+    try:
+        response = requests.get("https://acousticbrainz.org/api/v1/"+song_id+"/low-level")
+        response.raise_for_status()
+        json_response = response.json()
+        print(json.dumps(json_response, indent=4))
+        bpm = round(json_response["rhythm"]["bpm"])
+        print(bpm)
+        key = json_response["tonal"]["key_key"]
+        scale = json_response["tonal"]["key_scale"]
+        key_probability = json_response["tonal"]["key_strength"]
+        print(f"{key} {scale}, accuracy: {key_probability*100:.2f}%")
+        e.add_field(name = "BPM", value = bpm, inline = True)
+        e.add_field(name = f"Key signature: {key} {scale}", value = f"Accuracy: {key_probability*100:.2f}%", inline = True)
+    except Exception:
+        pass
+        
+### END ANALYSIS FUNCTION
+
 ### START DL COMMAND
 @client.command()
 async def dl(ctx, *, input: str):
@@ -192,6 +212,7 @@ async def dl(ctx, *, input: str):
                 album = release["title"]
                 print(f'Album {album_counter} title: {album}')
                 e = discord.Embed(title = "Song has been found!", description = f'Song ({song_counter}/{str(len(result["recording-list"]))}), Album ({album_counter}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
+                await analysis("5097fa26-1883-442f-aa70-2f335235b618", e)
                 e.add_field(name = "Song", value = song, inline = False)
                 e.add_field(name = "Artist", value = artists, inline = False)
                 e.add_field(name = "Album", value = album, inline = False)
@@ -251,17 +272,5 @@ async def ban(ctx, member:discord.Member):
     channel = client.get_channel(config.announce_channel)
     await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
 ### END ADMIN COMMANDS
-
-'''
-albums_iter=iter(albums)
-while (True) :           
-next_val = next(albums_iter,'end') 
-# if there are no more values in iterator, break the loop
-if next_val == 'end': 
-break
-else :
-print ("\nNext Val: ") 
-print (json.dumps(next_val, indent=4))
-'''
 
 client.run(config.discord_token)
