@@ -140,6 +140,10 @@ async def dl(ctx, *, input: str):
     if result["recording-list"]:
         song_counter = 1
         
+        # Set flag 
+        flag = False
+        message = None
+        
         # Loop through all of the songs
         for recording in result["recording-list"]:
             song = recording['title']
@@ -162,7 +166,28 @@ async def dl(ctx, *, input: str):
                 e.add_field(name = "Album", value = album, inline = False)
                 # Try to get the cover art
                 await get_cover_art(release["id"], e)
-                
+                if flag:
+                    await message.edit(embed=e)
+                else:
+                    message = await ctx.send(embed=e)
+                    flag = True
+
+                emojis = ["⏩","❌"]
+                for emoji in emojis:
+                    await message.add_reaction(emoji)
+            
+                def check_reaction(reaction, user):
+                    return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
+                reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
+        
+                if str(reaction.emoji) == '⏩':
+                    await message.remove_reaction('⏩', user)
+                    pass
+                if str(reaction.emoji) == "❌":
+                    await message.delete()
+                    await ctx.message.delete()
+                    
+                '''
                 # Check for reactions
                 message = await ctx.send(embed = e)
                 if (await reaction_check(ctx, message)):
@@ -171,7 +196,7 @@ async def dl(ctx, *, input: str):
                 else:
                     pass
                     print("PASSING")
-                    
+                '''
                 album_counter += 1     
             else:
                 song_counter += 1
@@ -234,10 +259,10 @@ async def verify(ctx, user):
         avatar_url = f'https://osu.ppy.sh{avatar_url}'
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
-
+'''
 @client.command(pass_context=True)
 async def dice(ctx):
-    '''Roll teh dice. Use: !roll'''
+    Roll teh dice. Use: !roll
     message = await ctx.send(embed=discord.Embed(title = f" Rolled {random.randint(1, 6)} 🎲"))
     emojis = ["⏩","❌"]
     for emoji in emojis:
@@ -254,6 +279,36 @@ async def dice(ctx):
         if str(reaction.emoji) == "❌":
             await message.delete()
             await ctx.message.delete()
+'''
+@client.command(pass_context=True)
+async def dice(ctx):
+    songs = ["78dd7d87", "s67s67", "a45a45", "1zz11"]
+    flag = False
+    message = None
+
+    for s in songs:
+        e = discord.Embed(title = s)
+        if flag:
+            await message.edit(embed=e)
+            print(f"editing the message: {message}\nflag: {flag}")
+        else:
+            message = await ctx.send(embed=e)
+            flag = True
+            print(f"ctx sending the message: {message}\nflag: {flag}")
+
+        emojis = ["⏩"]
+        for emoji in emojis:
+            await message.add_reaction(emoji)
+            
+        def check_reaction(reaction, user):
+            return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
+        reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
+        
+        if str(reaction.emoji) == '⏩':
+            await message.remove_reaction('⏩', user)
+            pass
+    
+    
 
 '''
 @client.command(pass_context=True)
