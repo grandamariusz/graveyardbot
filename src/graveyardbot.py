@@ -66,8 +66,6 @@ async def reaction_check(ctx, message):
         await message.add_reaction(emoji)
 
     def checkReaction(reaction, user):
-        # perhaps simplify this
-        #return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌' or str(reaction.emoji) == '⏩')
         return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
     
     reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
@@ -230,8 +228,28 @@ async def verify(ctx, user):
         avatar_url = f'https://osu.ppy.sh{avatar_url}'
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
+
+@client.command(pass_context=True)
+async def dice(ctx):
+    '''Roll teh dice. Use: !roll'''
+    message = await ctx.send(embed=discord.Embed(title = f" Rolled {random.randint(1, 6)} 🎲"))
+    emojis = ["⏩","❌"]
+    for emoji in emojis:
+        await message.add_reaction(emoji)
+
+    def checkReaction(reaction, user):
+        return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
     
-'''    
+    while True:
+        reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
+        if str(reaction.emoji) == '⏩':
+            await message.edit(embed=discord.Embed(title = f" Rolled {random.randint(1, 6)} 🎲"))
+            await message.remove_reaction('⏩', user)
+        if str(reaction.emoji) == "❌":
+            await message.delete()
+            await ctx.message.delete()
+
+'''
 @client.command(pass_context=True)
 async def roll(ctx):
     Roll one of the three goblins. Use: !roll
