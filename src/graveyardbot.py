@@ -60,15 +60,14 @@ async def parse_artists(artist_credit):
 
 ### START REACTION CHECK FUNCTION
 async def reaction_check(ctx, message):
-    #emojis = ["✅","❌","⏩"]
     emojis = ["⏩", "✅"]
     for emoji in emojis:
         await message.add_reaction(emoji)
 
-    def checkReaction(reaction, user):
+    def check_reaction(reaction, user):
         return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
     
-    reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
+    reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
 
     if str(reaction.emoji) == '⏩':
         await ctx.send("Going forward!")
@@ -83,7 +82,7 @@ async def reaction_check(ctx, message):
 ### END REACTION CHECK FUNCTION
 
 ### START ANALYSIS FUNCTION
-async def analysis(song_id, e):
+async def get_bpm_key(song_id, e):
     try:
         # Get the data from API
         response = requests.get(f"https://acousticbrainz.org/api/v1/{song_id}/low-level")
@@ -103,8 +102,31 @@ async def analysis(song_id, e):
         e.add_field(name = f"Key signature: {key} {scale}", value = f"Accuracy: {key_probability*100:.2f}%", inline = True)
     except Exception:
         pass
-### END ANALYSIS FUNCTION
 
+### END ANALYSIS FUNCTION
+    
+### START GET COVER ART FUNCTION
+async def get_cover_art(release_id, e):
+    try:
+    # release["id"]
+        print("Trying CoverArtArchive")
+        redirect=requests.get(mb.get_image_list(release_id)["images"][0]["thumbnails"]["large"]).url
+        e.set_thumbnail(url=redirect)
+    except Exception:
+        # Try to get the cover art from Amazon
+        try:
+            print("Trying Amazon")
+            response = requests.get(f'https://musicbrainz.org/ws/2/release/{release_id}?fmt=json')
+            response.raise_for_status()
+            asin = response.json()["asin"]
+            e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
+        # Else set a dummy image
+        except Exception:
+            e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
+            pass
+        pass
+### END GET COVER ART FUNCTION
+    
 ### START USER COMMANDS  
 ### START DL COMMAND
 @client.command()
@@ -134,30 +156,13 @@ async def dl(ctx, *, input: str):
                 # Add embed and embed fields
                 e = discord.Embed(title = "Song has been found!", description = f'Song ({song_counter}/{str(len(result["recording-list"]))}), Album ({album_counter}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
                 # Retrieve BPM and key
-                await analysis(recording["id"], e)
+                await get_bpm_key(recording["id"], e)
                 e.add_field(name = "Song", value = song, inline = False)
                 e.add_field(name = "Artist", value = artists, inline = False)
                 e.add_field(name = "Album", value = album, inline = False)
-
-                # Try to get the cover art from Cover Art Archive
-                try:
-                    print("Trying CoverArtArchive")
-                    redirect=requests.get(mb.get_image_list(release["id"])["images"][0]["thumbnails"]["large"]).url
-                    e.set_thumbnail(url=redirect)
-                except Exception:
-                    # Try to get the cover art from Amazon
-                    try:
-                        print("Trying Amazon")
-                        response = requests.get(f'https://musicbrainz.org/ws/2/release/{release["id"]}?fmt=json')
-                        response.raise_for_status()
-                        asin = response.json()["asin"]
-                        e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
-                    # Else set a dummy image
-                    except Exception:
-                        e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
-                        pass
-                    pass
-
+                # Try to get the cover art
+                await get_cover_art(release["id"], e)
+                
                 # Check for reactions
                 message = await ctx.send(embed = e)
                 if (await reaction_check(ctx, message)):
@@ -166,6 +171,7 @@ async def dl(ctx, *, input: str):
                 else:
                     pass
                     print("PASSING")
+                    
                 album_counter += 1     
             else:
                 song_counter += 1
@@ -237,11 +243,11 @@ async def dice(ctx):
     for emoji in emojis:
         await message.add_reaction(emoji)
 
-    def checkReaction(reaction, user):
+    def check_reaction(reaction, user):
         return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
     
     while True:
-        reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
+        reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
         if str(reaction.emoji) == '⏩':
             await message.edit(embed=discord.Embed(title = f" Rolled {random.randint(1, 6)} 🎲"))
             await message.remove_reaction('⏩', user)
