@@ -119,13 +119,35 @@ async def get_cover_art(release_id, e):
             response = requests.get(f'https://musicbrainz.org/ws/2/release/{release_id}?fmt=json')
             response.raise_for_status()
             asin = response.json()["asin"]
-            e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
+            if asin:
+                e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
+            else:
+                e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
+                
         # Else set a dummy image
         except Exception:
-            e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
+            e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
             pass
         pass
 ### END GET COVER ART FUNCTION
+
+### START REACTION FUNCTION
+async def get_reaction(c, msg):
+    emojis = ["⏩","❌"]
+    for emoji in emojis:
+        await msg.add_reaction(emoji)
+            
+    def check_reaction(reaction, user):
+        return user != client.user and reaction.message == msg and user == c.author and reaction.emoji in emojis
+    reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
+        
+    if str(reaction.emoji) == '⏩':
+        await msg.remove_reaction('⏩', user)
+        pass
+    if str(reaction.emoji) == "❌":
+        await msg.delete()
+        await c.message.delete()
+### END REACTION FUNCTION
     
 ### START USER COMMANDS  
 ### START DL COMMAND
@@ -138,27 +160,25 @@ async def dl(ctx, *, input: str):
 
     # If song was found
     if result["recording-list"]:
-        song_counter = 1
         
         # Set flag 
         flag = False
         message = None
         
         # Loop through all of the songs
-        for recording in result["recording-list"]:
+        for recording_index, recording in enumerate(result["recording-list"]):
             song = recording['title']
             artists = await parse_artists(recording["artist-credit"])
             print(f"Song: {song}, Artist credit: {artists}")
             print(json.dumps(recording, indent=4)) 
-            album_counter = 1
             
             # Loop through all of the albums
-            for release in recording["release-list"]:
+            for release_index, release in enumerate(recording["release-list"]):
                 album = release["title"]
-                print(f'Album {album_counter} title: {album}')
+                print(f'Album {release_index+1} title: {album}')
                 
                 # Add embed and embed fields
-                e = discord.Embed(title = "Song has been found!", description = f'Song ({song_counter}/{str(len(result["recording-list"]))}), Album ({album_counter}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
+                e = discord.Embed(title = "Song has been found!", description = f'Song ({recording_index+1}/{str(len(result["recording-list"]))}), Album ({release_index+1}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
                 # Retrieve BPM and key
                 await get_bpm_key(recording["id"], e)
                 e.add_field(name = "Song", value = song, inline = False)
@@ -166,12 +186,15 @@ async def dl(ctx, *, input: str):
                 e.add_field(name = "Album", value = album, inline = False)
                 # Try to get the cover art
                 await get_cover_art(release["id"], e)
+
+                # Check whether to send a new message or edit
                 if flag:
                     await message.edit(embed=e)
                 else:
                     message = await ctx.send(embed=e)
                     flag = True
-
+                    
+                # Assign reactions to message
                 emojis = ["⏩","❌"]
                 for emoji in emojis:
                     await message.add_reaction(emoji)
@@ -186,20 +209,8 @@ async def dl(ctx, *, input: str):
                 if str(reaction.emoji) == "❌":
                     await message.delete()
                     await ctx.message.delete()
-                    
-                '''
-                # Check for reactions
-                message = await ctx.send(embed = e)
-                if (await reaction_check(ctx, message)):
-                    print("BREAKING")
-                    break
-                else:
-                    pass
-                    print("PASSING")
-                '''
-                album_counter += 1     
+
             else:
-                song_counter += 1
                 print("\n")
                 continue
             break
@@ -259,73 +270,6 @@ async def verify(ctx, user):
         avatar_url = f'https://osu.ppy.sh{avatar_url}'
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
-'''
-@client.command(pass_context=True)
-async def dice(ctx):
-    Roll teh dice. Use: !roll
-    message = await ctx.send(embed=discord.Embed(title = f" Rolled {random.randint(1, 6)} 🎲"))
-    emojis = ["⏩","❌"]
-    for emoji in emojis:
-        await message.add_reaction(emoji)
-
-    def check_reaction(reaction, user):
-        return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
-    
-    while True:
-        reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-        if str(reaction.emoji) == '⏩':
-            await message.edit(embed=discord.Embed(title = f" Rolled {random.randint(1, 6)} 🎲"))
-            await message.remove_reaction('⏩', user)
-        if str(reaction.emoji) == "❌":
-            await message.delete()
-            await ctx.message.delete()
-'''
-@client.command(pass_context=True)
-async def dice(ctx):
-    songs = ["78dd7d87", "s67s67", "a45a45", "1zz11"]
-    flag = False
-    message = None
-
-    for s in songs:
-        e = discord.Embed(title = s)
-        if flag:
-            await message.edit(embed=e)
-            print(f"editing the message: {message}\nflag: {flag}")
-        else:
-            message = await ctx.send(embed=e)
-            flag = True
-            print(f"ctx sending the message: {message}\nflag: {flag}")
-
-        emojis = ["⏩"]
-        for emoji in emojis:
-            await message.add_reaction(emoji)
-            
-        def check_reaction(reaction, user):
-            return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
-        reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-        
-        if str(reaction.emoji) == '⏩':
-            await message.remove_reaction('⏩', user)
-            pass
-    
-    
-
-'''
-@client.command(pass_context=True)
-async def roll(ctx):
-    Roll one of the three goblins. Use: !roll
-    message = await ctx.send("Rolled")
-    emojis = ["✅","❌"]
-    for emoji in emojis:
-        await message.add_reaction(emoji)
-        
-    def checkReaction(reaction, user):
-        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
-    reaction, user = await client.wait_for("reaction_add", check=checkReaction)
-    print(f"ctx: {ctx.message}\n")
-    print(f"reaction: {reaction.message}\n")
-    await ctx.send(reaction) if str(reaction.emoji) == '✅' else await ctx.send("Not Pog")
-'''
 ### END USER COMMANDS
 
 ### START ADMIN COMMANDS
