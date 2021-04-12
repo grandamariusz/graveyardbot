@@ -66,10 +66,8 @@ async def reaction_check(ctx, message):
 
     def checkReaction(reaction, user):
         return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌' or str(reaction.emoji) == '⏩')
-    try:
-        reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
-    except asyncio.TimeoutError:
-        pass
+    
+    reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
     
     if str(reaction.emoji) == '✅':
         #await ctx.send("<:tux:775785821768122459>")
