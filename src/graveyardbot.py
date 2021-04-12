@@ -60,23 +60,27 @@ async def parse_artists(artist_credit):
 
 ### START REACTION CHECK FUNCTION
 async def reaction_check(ctx, message):
-    emojis = ["✅","❌","⏩"]
+    #emojis = ["✅","❌","⏩"]
+    emojis = ["⏩", "✅"]
     for emoji in emojis:
         await message.add_reaction(emoji)
 
     def checkReaction(reaction, user):
-        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌' or str(reaction.emoji) == '⏩')
+        # perhaps simplify this
+        #return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌' or str(reaction.emoji) == '⏩')
+        return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
     
     reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
-    
-    if str(reaction.emoji) == '✅':
-        #await ctx.send("<:tux:775785821768122459>")
-        return True
-    elif str(reaction.emoji) == '❌':
-        #await ctx.send("Not Pog")
+
+    if str(reaction.emoji) == '⏩':
+        await ctx.send("Going forward!")
         return False
-    elif str(reaction.emoji) == '⏩':
-        await ctx.send("Speed up!")
+    elif str(reaction.emoji) == '✅':
+        await ctx.send("Song accepted!")
+        return True
+    #elif str(reaction.emoji) == '❌':
+        #await ctx.send("Not Pog")
+        
 
 ### END REACTION CHECK FUNCTION
 
