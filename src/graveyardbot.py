@@ -12,6 +12,18 @@ client = commands.Bot(command_prefix=config.prefix, intents=intents)
 tmp_token=''
 date=''
 
+@client.event
+async def on_ready():
+    print("I'm ready")
+    await client.change_presence(status=discord.Status.idle, activity=discord.Game(name="87th dimension"))
+
+@client.event
+async def on_member_join(member):
+    channel = client.get_channel(config.join_channel)
+    await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
+    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <osu_username>` to get verified!")
+
+
 async def return_token():
     '''return temporary token / retrieve new token'''
     global tmp_token
@@ -34,21 +46,142 @@ async def return_token():
         date = datetime.now().timestamp()
         return tmp_token['access_token']
 
-@client.event
-async def on_ready():
-    print("I'm ready")
-    await client.change_presence(status=discord.Status.idle, activity=discord.Game(name="87th dimension"))
 
-@client.event
-async def on_member_join(member):
-    channel = client.get_channel(config.join_channel)
-    await member.add_roles(discord.utils.get(member.guild.roles, name="Newcomers"))
-    await channel.send(f"{random.choice(config.greetings)}, {member.mention}\nUse `!verify <osu_username>` to get verified!")
+### START ARTIST PARSING FUNCTION
+async def parse_artists(artist_credit):
+    s = ""
+    for entry in artist_credit:
+        if type(entry) is dict:
+            s += f'{entry["artist"]["sort-name"]}'
+        else:
+            s += entry
+    return s
+### END ARTIST PARSING FUNCTION
 
+### START REACTION CHECK FUNCTION
+async def reaction_check(ctx, message):
+    emojis = ["✅","❌","⏩"]
+    for emoji in emojis:
+        await message.add_reaction(emoji)
+
+    def checkReaction(reaction, user):
+        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌' or str(reaction.emoji) == '⏩')
+    try:
+        reaction, user = await client.wait_for("reaction_add", check=checkReaction, timeout=60)
+    except asyncio.TimeoutError:
+        pass
+    
+    if str(reaction.emoji) == '✅':
+        #await ctx.send("<:tux:775785821768122459>")
+        return True
+    elif str(reaction.emoji) == '❌':
+        #await ctx.send("Not Pog")
+        return False
+    elif str(reaction.emoji) == '⏩':
+        await ctx.send("Speed up!")
+
+### END REACTION CHECK FUNCTION
+
+### START ANALYSIS FUNCTION
+async def analysis(song_id, e):
+    try:
+        # Get the data from API
+        response = requests.get(f"https://acousticbrainz.org/api/v1/{song_id}/low-level")
+        response.raise_for_status()
+        json_response = response.json()
+        #print(json.dumps(json_response, indent=4))
+        
+        # Assign the data to variables
+        bpm = round(json_response["rhythm"]["bpm"])
+        key = json_response["tonal"]["key_key"]
+        scale = json_response["tonal"]["key_scale"]
+        key_probability = json_response["tonal"]["key_strength"]
+        #print(f"BPM: {bpm}, {key} {scale}, accuracy: {key_probability*100:.2f}%")
+                    
+        # Add fields to embed          
+        e.add_field(name = "BPM", value = bpm, inline = True)
+        e.add_field(name = f"Key signature: {key} {scale}", value = f"Accuracy: {key_probability*100:.2f}%", inline = True)
+    except Exception:
+        pass
+### END ANALYSIS FUNCTION
+
+### START USER COMMANDS  
+### START DL COMMAND
+@client.command()
+async def dl(ctx, *, input: str):
+    ''' Graveyard Gamer Maneuver™ '''
+    # Set the musicbrainz agent, and get the recordings
+    mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
+    result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
+
+    # If song was found
+    if result["recording-list"]:
+        song_counter = 1
+        
+        # Loop through all of the songs
+        for recording in result["recording-list"]:
+            song = recording['title']
+            artists = await parse_artists(recording["artist-credit"])
+            print(f"Song: {song}, Artist credit: {artists}")
+            print(json.dumps(recording, indent=4)) 
+            album_counter = 1
+            
+            # Loop through all of the albums
+            for release in recording["release-list"]:
+                album = release["title"]
+                print(f'Album {album_counter} title: {album}')
+                
+                # Add embed and embed fields
+                e = discord.Embed(title = "Song has been found!", description = f'Song ({song_counter}/{str(len(result["recording-list"]))}), Album ({album_counter}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
+                # Retrieve BPM and key
+                await analysis(recording["id"], e)
+                e.add_field(name = "Song", value = song, inline = False)
+                e.add_field(name = "Artist", value = artists, inline = False)
+                e.add_field(name = "Album", value = album, inline = False)
+
+                # Try to get the cover art from Cover Art Archive
+                try:
+                    print("Trying CoverArtArchive")
+                    redirect=requests.get(mb.get_image_list(release["id"])["images"][0]["thumbnails"]["large"]).url
+                    e.set_thumbnail(url=redirect)
+                except Exception:
+                    # Try to get the cover art from Amazon
+                    try:
+                        print("Trying Amazon")
+                        response = requests.get(f'https://musicbrainz.org/ws/2/release/{release["id"]}?fmt=json')
+                        response.raise_for_status()
+                        asin = response.json()["asin"]
+                        e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
+                    # Else set a dummy image
+                    except Exception:
+                        e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
+                        pass
+                    pass
+
+                # Check for reactions
+                message = await ctx.send(embed = e)
+                if (await reaction_check(ctx, message)):
+                    print("BREAKING")
+                    break
+                else:
+                    pass
+                    print("PASSING")
+                album_counter += 1     
+            else:
+                song_counter += 1
+                print("\n")
+                continue
+            break
+    # If song was not found
+    else:
+        e = discord.Embed(title = "Song not found!", color = 0xff3232)
+        await ctx.send(embed = e)
+### END DL COMMAND
+        
 @client.command()
 async def user(ctx, user_id):
     '''User details. Use: !user <osu_username>'''
-    response = requests.get('https://osu.ppy.sh/api/v2/users/'+user_id+'/osu', headers={'Authorization': 'Bearer '+ await return_token()}).json()
+    response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user_id}/osu', headers={'Authorization': f'Bearer {await return_token()}' }).json()
     e = discord.Embed(title = f"User Details")
     e.add_field(name = "Username", value = response['username'])
     e.add_field(name = "Online", value = ':green_circle:' if response['is_online'] else ':red_circle:')
@@ -62,7 +195,7 @@ async def user(ctx, user_id):
 @client.command()
 async def verify(ctx, user):
     '''Verify an user. Use: !verify <osu_username>'''
-    response = requests.get('https://osu.ppy.sh/api/v2/users/'+user+'/osu', headers={'Authorization': 'Bearer ' + await return_token()}).json()
+    response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user}/osu', headers={'Authorization': f'Bearer {await return_token()}' }).json()
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
 
@@ -92,9 +225,10 @@ async def verify(ctx, user):
     e.add_field(name = "Username", value = response['username'], inline=False)
     avatar_url = response['avatar_url']
     if 'avatar-guest' in avatar_url:
-        avatar_url = 'https://osu.ppy.sh' + avatar_url
+        avatar_url = f'https://osu.ppy.sh{avatar_url}'
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
+    
 '''    
 @client.command(pass_context=True)
 async def roll(ctx):
@@ -111,153 +245,7 @@ async def roll(ctx):
     print(f"reaction: {reaction.message}\n")
     await ctx.send(reaction) if str(reaction.emoji) == '✅' else await ctx.send("Not Pog")
 '''
-'''
-### START DOWNLOAD COMMAND
-@client.command()
-async def download(ctx, *, input: str):
-    Graveyard Gamer Maneuver™
-    mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
-    result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
-    print(json.dumps(result, indent=4))
-    if (result["recording-list"]):
-        albums = result["recording-list"][0]["release-list"]
-        e = discord.Embed(title = "Song has been found!", description = f"Album ({1}/{str(len(albums))})", color = 0x2ecc71)
-
-        for release in result["recording-list"][0]["release-list"]:
-            try:
-                try:    
-                    e.set_thumbnail(url=requests.get(mb.get_release_group_image_list(release["release-group"]["id"])["images"][0]["image"]).url)
-                except Exception:
-                    e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
-                    pass
-                e.add_field(name = "Title", value = result["recording-list"][0]["title"], inline = False)
-                e.add_field(name = "Artist", value = result["recording-list"][0]["artist-credit"][0]["name"], inline = False)
-                e.add_field(name = "Album", value = release["release-group"]["title"], inline = False) 
-                break
-            except Exception:
-                pass
-        await ctx.send(embed = e)
-    else:
-        #await ctx.send("**Song not found!**")
-        e = discord.Embed(title = "Song not found", color = 0xff3232)
-        await ctx.send(embed = e)
-### END DOWNLOAD COMMAND
-'''
-
-### START ARTIST PARSING FUNCTION
-async def parse_artists(artist_credit):
-    s = ""
-    for entry in artist_credit:
-        if type(entry) is dict:
-            s += f'{entry["artist"]["sort-name"]}'
-        else:
-            s += entry
-    return s
-### END ARTIST PARSING FUNCTION
-
-### START REACTION CHECK FUNCTION
-async def reaction_check(ctx, message):
-    emojis = ["✅","❌","⏩"]
-    for emoji in emojis:
-        await message.add_reaction(emoji)
-
-    def checkReaction(reaction, user):
-        return user != client.user and reaction.message == message and user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌' or str(reaction.emoji) == '⏩')
-    
-    reaction, user = await client.wait_for("reaction_add", check=checkReaction)
-    
-    if str(reaction.emoji) == '✅':
-        #await ctx.send("<:tux:775785821768122459>")
-        return True
-    elif str(reaction.emoji) == '❌':
-        #await ctx.send("Not Pog")
-        return False
-    elif str(reaction.emoji) == '⏩':
-        await ctx.send("Speed up!")
-
-### END REACTION CHECK FUNCTION
-
-### START ANALYSIS FUNCTION
-async def analysis(song_id, e):
-    try:
-        response = requests.get("https://acousticbrainz.org/api/v1/"+song_id+"/low-level")
-        response.raise_for_status()
-        json_response = response.json()
-        print(json.dumps(json_response, indent=4))
-        bpm = round(json_response["rhythm"]["bpm"])
-        print(bpm)
-        key = json_response["tonal"]["key_key"]
-        scale = json_response["tonal"]["key_scale"]
-        key_probability = json_response["tonal"]["key_strength"]
-        print(f"{key} {scale}, accuracy: {key_probability*100:.2f}%")
-        e.add_field(name = "BPM", value = bpm, inline = True)
-        e.add_field(name = f"Key signature: {key} {scale}", value = f"Accuracy: {key_probability*100:.2f}%", inline = True)
-    except Exception:
-        pass
-### END ANALYSIS FUNCTION
-
-### START DL COMMAND
-@client.command()
-async def dl(ctx, *, input: str):
-    ''' Graveyard Gamer Maneuver™ '''
-    mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
-    result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)   
-    if result["recording-list"]:
-        song_counter = 1
-        for recording in result["recording-list"]:
-            song = recording['title']
-            artists = await parse_artists(recording["artist-credit"])
-            print(f"Song: {song}")
-            print(f"Artist credit: {artists}")
-            print(json.dumps(recording, indent=4))
-            
-            album_counter = 1
-            for release in recording["release-list"]:
-                album = release["title"]
-                print(f'Album {album_counter} title: {album}')
-                e = discord.Embed(title = "Song has been found!", description = f'Song ({song_counter}/{str(len(result["recording-list"]))}), Album ({album_counter}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
-                await analysis(recording["id"], e)
-                e.add_field(name = "Song", value = song, inline = False)
-                e.add_field(name = "Artist", value = artists, inline = False)
-                e.add_field(name = "Album", value = album, inline = False)
-                
-                try:
-                    print("Trying CoverArtArchive")
-                    redirect=requests.get(mb.get_image_list(release["id"])["images"][0]["thumbnails"]["large"]).url
-                    print(redirect)
-                    print(json.dumps(mb.get_image_list(release["id"]), indent=4))
-                    e.set_thumbnail(url=redirect)
-                except Exception:
-                    try:
-                        print("Trying Amazon")
-                        with urllib.request.urlopen("https://musicbrainz.org/ws/2/release/"+release["id"]+"?fmt=json") as lookup:
-                            json_convert = json.loads(lookup.read().decode())
-                            print(json.dumps(json_convert, indent=4))
-                            asin = json_convert["asin"]
-                            print(asin)
-                            e.set_thumbnail(url="https://images-na.ssl-images-amazon.com/images/P/"+asin+".jpg")
-                    except Exception:
-                        e.set_thumbnail(url="https://cdn.discordapp.com/emojis/768194173685071934.png")
-                        pass
-                    pass
-                
-                message = await ctx.send(embed = e)
-                if (await reaction_check(ctx, message)):
-                    print("BREAKING")
-                    break
-                else:
-                    pass
-                    print("PASSING")
-                album_counter += 1      
-            else:
-                song_counter += 1
-                print("\n")
-                continue
-            break
-    else:
-        e = discord.Embed(title = "Song not found!", color = 0xff3232)
-        await ctx.send(embed = e)
-### END DL COMMAND
+### END USER COMMANDS
 
 ### START ADMIN COMMANDS
 @client.command()
@@ -266,7 +254,8 @@ async def kick(ctx, member:discord.Member):
     ''' Kicks a member. Use: !kick <@user> '''
     await member.kick()
     channel = client.get_channel(config.announce_channel)
-    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
+    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
+    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
 
 @client.command()
 @commands.has_role("Admin")
@@ -274,7 +263,8 @@ async def ban(ctx, member:discord.Member):
     ''' Bans a member. Use: !ban <@user> '''
     await member.ban()
     channel = client.get_channel(config.announce_channel)
-    await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
+    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
+    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
 ### END ADMIN COMMANDS
-
+    
 client.run(config.discord_token)
