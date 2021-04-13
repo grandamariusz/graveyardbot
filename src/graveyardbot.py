@@ -182,8 +182,17 @@ async def dl(ctx, *, input: str):
                     return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
 
                 # Wait for user to react
-                reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-
+                try:
+                    reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
+                except Exception:
+                    exit_flag = True
+                    print("Reaction wait timed out")
+                    await message.clear_reactions()
+                    e.title = "Operation timed out!"
+                    e.color = 0xe3e6df
+                    await message.edit(embed=e)
+                    break
+                    
                 # Perform appropriate operation upon reaction
                 if str(reaction.emoji) == '✅':
                     exit_flag = True
@@ -201,7 +210,7 @@ async def dl(ctx, *, input: str):
                 if str(reaction.emoji) == "🛑":
                     exit_flag = True
                     await message.clear_reactions()
-                    await message.edit(embed=discord.Embed(title = "⚠️ Operation cancelled", color = 0xffcc4d))
+                    await message.edit(embed=discord.Embed(title = "⚠️ Operation cancelled!", color = 0xffcc4d))
 
                 if exit_flag:
                     # Exit release loop
