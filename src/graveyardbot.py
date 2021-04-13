@@ -121,8 +121,8 @@ async def dl(ctx, *, input: str):
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
 
     # If song was found
-    if result["recording-list"]:
-
+    if "recording-list" in result:
+        
         exit_flag = False
         
         # Loop through all of the songs
@@ -131,12 +131,98 @@ async def dl(ctx, *, input: str):
             artists = await parse_artists(recording["artist-credit"])
             print(f"Song #{recording_index+1}: {song}, Artist credit: {artists}")
             print(json.dumps(recording, indent=4)) 
-            
-            # Loop through all of the albums
-            for release_index, release in enumerate(recording["release-list"]):
-                album = release["title"]
-                print(f'\nAlbum #{release_index+1}, Title: {album}')
-                
+
+            if "release-list" in recording:
+                # Loop through all of the albums
+                for release_index, release in enumerate(recording["release-list"]):
+                    album = release["title"]
+                    print(f'\nAlbum #{release_index+1}, Title: {album}')
+                    
+                    # Add embed and embed fields
+                    e = discord.Embed(title = "Song has been found!", color = 0x2ecc71)
+
+                    # Retrieve BPM and key
+                    await get_bpm_key(recording["id"], e)
+
+                    # Set main fields
+                    e.add_field(name = f'Song ({recording_index+1}/{str(len(result["recording-list"]))})', value = song, inline = False)
+                    e.add_field(name = f'Album ({release_index+1}/{str(len(recording["release-list"]))})', value = album, inline = False)
+                    e.add_field(name = "Artist", value = artists, inline = False)
+                    
+                    # Try to get the cover art
+                    await get_cover_art(release["id"], e)
+
+                    # Check whether to send a new message or edit
+                    if release_index == 0 and recording_index == 0:
+                        message = await ctx.send(embed=e)
+                    else:
+                        await message.edit(embed=e)
+                        
+                    # Assign reactions to message
+                    print(recording_index)
+                    print(release_index)
+                    print(len(result["recording-list"]))
+                    print(len(recording["release-list"]))
+
+                    await message.clear_reactions()
+                    #await message.clear_reactions()
+                    emojis = ["✅"]
+                    if release_index + 1 < len(recording["release-list"]):
+                        print("release index was less than the total number of albums")
+                        emojis.append("⏩")
+                    if recording_index + 1 < len(result["recording-list"]):
+                        print("recording index was less than the total number of songs")
+                        emojis.append("⏭")
+                    emojis.append("🛑")
+                        
+                    for emoji in emojis:
+                        await message.add_reaction(emoji)
+
+                    # Function that confirms that the user's reaction is valid and was placed on appropriate message
+                    def check_reaction(reaction, user):
+                        return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
+
+                    # Wait for user to react
+                    try:
+                        reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
+                    except Exception:
+                        exit_flag = True
+                        print("Reaction wait timed out")
+                        await message.clear_reactions()
+                        e.title = "Operation timed out!"
+                        e.color = 0xe3e6df
+                        await message.edit(embed=e)
+                        break
+                        
+                    # Perform appropriate operation upon reaction
+                    if str(reaction.emoji) == '✅':
+                        exit_flag = True
+                        await message.clear_reactions()
+                        await ctx.send("Song accepted.")
+                    if str(reaction.emoji) == '⏩':
+                        await message.remove_reaction('⏩', user)
+                        print("Loading next album...")
+                        await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3b88c3))
+                    if str(reaction.emoji) == '⏭':
+                        await message.remove_reaction('⏭', user)
+                        print("Loading next song...")
+                        await message.edit(embed=discord.Embed(title = "🔄 Loading next song...", color = 0x3b88c3))
+                        break
+                    if str(reaction.emoji) == "🛑":
+                        exit_flag = True
+                        await message.clear_reactions()
+                        await message.edit(embed=discord.Embed(title = "⚠️ Operation cancelled!", color = 0xffcc4d))
+
+                    if exit_flag:
+                        # Exit release loop
+                        break
+                    
+                if exit_flag:
+                    # Exit recording loop
+                    break
+
+            # If no release was found
+            else:
                 # Add embed and embed fields
                 e = discord.Embed(title = "Song has been found!", color = 0x2ecc71)
 
@@ -145,81 +231,12 @@ async def dl(ctx, *, input: str):
 
                 # Set main fields
                 e.add_field(name = f'Song ({recording_index+1}/{str(len(result["recording-list"]))})', value = song, inline = False)
-                e.add_field(name = f'Album ({release_index+1}/{str(len(recording["release-list"]))})', value = album, inline = False)
                 e.add_field(name = "Artist", value = artists, inline = False)
                 
-                # Try to get the cover art
-                await get_cover_art(release["id"], e)
-
-                # Check whether to send a new message or edit
-                if release_index == 0 and recording_index == 0:
-                    message = await ctx.send(embed=e)
-                else:
-                    await message.edit(embed=e)
-                    
-                # Assign reactions to message
-                print(recording_index)
-                print(release_index)
-                print(len(result["recording-list"]))
-                print(len(recording["release-list"]))
-
-                await message.clear_reactions()
-                #await message.clear_reactions()
-                emojis = ["✅"]
-                if release_index + 1 < len(recording["release-list"]):
-                    print("release index was less than the total number of albums")
-                    emojis.append("⏩")
-                if recording_index + 1 < len(result["recording-list"]):
-                    print("recording index was less than the total number of songs")
-                    emojis.append("⏭")
-                emojis.append("🛑")
-                    
-                for emoji in emojis:
-                    await message.add_reaction(emoji)
-
-                # Function that confirms that the user's reaction is valid and was placed on appropriate message
-                def check_reaction(reaction, user):
-                    return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
-
-                # Wait for user to react
-                try:
-                    reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-                except Exception:
-                    exit_flag = True
-                    print("Reaction wait timed out")
-                    await message.clear_reactions()
-                    e.title = "Operation timed out!"
-                    e.color = 0xe3e6df
-                    await message.edit(embed=e)
-                    break
-                    
-                # Perform appropriate operation upon reaction
-                if str(reaction.emoji) == '✅':
-                    exit_flag = True
-                    await message.clear_reactions()
-                    await ctx.send("Song accepted.")
-                if str(reaction.emoji) == '⏩':
-                    await message.remove_reaction('⏩', user)
-                    print("Loading next album...")
-                    await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3b88c3))
-                if str(reaction.emoji) == '⏭':
-                    await message.remove_reaction('⏭', user)
-                    print("Loading next song...")
-                    await message.edit(embed=discord.Embed(title = "🔄 Loading next song...", color = 0x3b88c3))
-                    break
-                if str(reaction.emoji) == "🛑":
-                    exit_flag = True
-                    await message.clear_reactions()
-                    await message.edit(embed=discord.Embed(title = "⚠️ Operation cancelled!", color = 0xffcc4d))
-
-                if exit_flag:
-                    # Exit release loop
-                    break
+                # Set dummy cover art
+                e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
+                await ctx.send(embed = e)
                 
-            if exit_flag:
-                # Exit recording loop
-                break
-
     # If song was not found
     else:
         e = discord.Embed(title = "Song not found!", color = 0xff3232)
