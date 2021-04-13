@@ -94,11 +94,16 @@ async def get_cover_art(release_id, e):
             response = requests.get(f'https://musicbrainz.org/ws/2/release/{release_id}?fmt=json')
             response.raise_for_status()
             asin = response.json()["asin"]
-            print(asin)
-            if not asin:
+
+            if asin:
+                response = requests.get(f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
+                if response.headers['Content-Type'] == "image/gif":
+                    raise ValueError("Image is a 1x1 GIF")
+                else:
+                    e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
+            else:
                 raise ValueError("ASIN not found")
-            e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
-            
+
         # Else set a dummy image
         except Exception:
             print("Using fallback image")
@@ -133,15 +138,15 @@ async def dl(ctx, *, input: str):
                 print(f'\nAlbum #{release_index+1}, Title: {album}')
                 
                 # Add embed and embed fields
-                e = discord.Embed(title = "Song has been found!", description = f'Song ({recording_index+1}/{str(len(result["recording-list"]))}), Album ({release_index+1}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
+                e = discord.Embed(title = "Song has been found!", color = 0x2ecc71)
 
                 # Retrieve BPM and key
                 await get_bpm_key(recording["id"], e)
 
                 # Set main fields
-                e.add_field(name = "Song", value = song, inline = False)
+                e.add_field(name = f'Song ({recording_index+1}/{str(len(result["recording-list"]))})', value = song, inline = False)
+                e.add_field(name = f'Album ({release_index+1}/{str(len(recording["release-list"]))})', value = album, inline = False)
                 e.add_field(name = "Artist", value = artists, inline = False)
-                e.add_field(name = "Album", value = album, inline = False)
                 
                 # Try to get the cover art
                 await get_cover_art(release["id"], e)
@@ -187,18 +192,21 @@ async def dl(ctx, *, input: str):
                 if str(reaction.emoji) == '⏩':
                     await message.remove_reaction('⏩', user)
                     print("Loading next album...")
-                    await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3366ff))
+                    await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3b88c3))
                 if str(reaction.emoji) == '⏭':
                     await message.remove_reaction('⏭', user)
                     print("Loading next song...")
+                    await message.edit(embed=discord.Embed(title = "🔄 Loading next song...", color = 0x3b88c3))
                     break
                 if str(reaction.emoji) == "🛑":
-                    await message.delete()
-                    await ctx.message.delete()
+                    exit_flag = True
+                    await message.clear_reactions()
+                    await message.edit(embed=discord.Embed(title = "⚠️ Operation cancelled", color = 0xffcc4d))
 
                 if exit_flag:
                     # Exit release loop
                     break
+                
             if exit_flag:
                 # Exit recording loop
                 break
