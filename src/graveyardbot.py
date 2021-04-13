@@ -127,7 +127,7 @@ async def dl(ctx, *, input: str):
             # Loop through all of the albums
             for release_index, release in enumerate(recording["release-list"]):
                 album = release["title"]
-                print(f'Album #{release_index+1}, Title: {album}')
+                print(f'\nAlbum #{release_index+1}, Title: {album}')
                 
                 # Add embed and embed fields
                 e = discord.Embed(title = "Song has been found!", description = f'Song ({recording_index+1}/{str(len(result["recording-list"]))}), Album ({release_index+1}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
@@ -144,7 +144,7 @@ async def dl(ctx, *, input: str):
                 await get_cover_art(release["id"], e)
 
                 # Check whether to send a new message or edit
-                if recording_index == 0:
+                if release_index == 0 and recording_index == 0:
                     message = await ctx.send(embed=e)
                 else:
                     await message.edit(embed=e)
