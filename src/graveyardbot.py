@@ -94,6 +94,7 @@ async def get_cover_art(release_id, e):
             response = requests.get(f'https://musicbrainz.org/ws/2/release/{release_id}?fmt=json')
             response.raise_for_status()
             asin = response.json()["asin"]
+            print(asin)
             if not asin:
                 raise ValueError("ASIN not found")
             e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
@@ -116,6 +117,8 @@ async def dl(ctx, *, input: str):
 
     # If song was found
     if result["recording-list"]:
+
+        exit_flag = False
         
         # Loop through all of the songs
         for recording_index, recording in enumerate(result["recording-list"]):
@@ -150,7 +153,22 @@ async def dl(ctx, *, input: str):
                     await message.edit(embed=e)
                     
                 # Assign reactions to message
-                emojis = ["⏩","❌"]
+                print(recording_index)
+                print(release_index)
+                print(len(result["recording-list"]))
+                print(len(recording["release-list"]))
+
+                await message.clear_reactions()
+                #await message.clear_reactions()
+                emojis = ["✅"]
+                if release_index + 1 < len(recording["release-list"]):
+                    print("release index was less than the total number of albums")
+                    emojis.append("⏩")
+                if recording_index + 1 < len(result["recording-list"]):
+                    print("recording index was less than the total number of songs")
+                    emojis.append("⏭")
+                emojis.append("🛑")
+                    
                 for emoji in emojis:
                     await message.add_reaction(emoji)
 
@@ -160,14 +178,31 @@ async def dl(ctx, *, input: str):
 
                 # Wait for user to react
                 reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-                
+
+                # Perform appropriate operation upon reaction
+                if str(reaction.emoji) == '✅':
+                    exit_flag = True
+                    await message.clear_reactions()
+                    await ctx.send("Song accepted.")
                 if str(reaction.emoji) == '⏩':
                     await message.remove_reaction('⏩', user)
-                    pass
-                if str(reaction.emoji) == "❌":
+                    print("Loading next album...")
+                    await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3366ff))
+                if str(reaction.emoji) == '⏭':
+                    await message.remove_reaction('⏭', user)
+                    print("Loading next song...")
+                    break
+                if str(reaction.emoji) == "🛑":
                     await message.delete()
                     await ctx.message.delete()
-                    
+
+                if exit_flag:
+                    # Exit release loop
+                    break
+            if exit_flag:
+                # Exit recording loop
+                break
+
     # If song was not found
     else:
         e = discord.Embed(title = "Song not found!", color = 0xff3232)
