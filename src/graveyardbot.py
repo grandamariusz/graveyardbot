@@ -46,7 +46,6 @@ async def return_token():
         date = datetime.now().timestamp()
         return tmp_token['access_token']
 
-
 ### START ARTIST PARSING FUNCTION
 async def parse_artists(artist_credit):
     s = ""
@@ -58,102 +57,59 @@ async def parse_artists(artist_credit):
     return s
 ### END ARTIST PARSING FUNCTION
 
-### START REACTION CHECK FUNCTION
-async def reaction_check(ctx, message):
-    emojis = ["⏩", "✅"]
-    for emoji in emojis:
-        await message.add_reaction(emoji)
-
-    def check_reaction(reaction, user):
-        return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
-    
-    reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-
-    if str(reaction.emoji) == '⏩':
-        await ctx.send("Going forward!")
-        return False
-    elif str(reaction.emoji) == '✅':
-        await ctx.send("Song accepted!")
-        return True
-    #elif str(reaction.emoji) == '❌':
-        #await ctx.send("Not Pog")
-        
-
-### END REACTION CHECK FUNCTION
-
-### START ANALYSIS FUNCTION
+### START ACOUSTIC ANALYSIS FUNCTION
 async def get_bpm_key(song_id, e):
     try:
         # Get the data from API
         response = requests.get(f"https://acousticbrainz.org/api/v1/{song_id}/low-level")
         response.raise_for_status()
         json_response = response.json()
-        #print(json.dumps(json_response, indent=4))
         
         # Assign the data to variables
         bpm = round(json_response["rhythm"]["bpm"])
         key = json_response["tonal"]["key_key"]
         scale = json_response["tonal"]["key_scale"]
         key_probability = json_response["tonal"]["key_strength"]
-        #print(f"BPM: {bpm}, {key} {scale}, accuracy: {key_probability*100:.2f}%")
                     
         # Add fields to embed          
         e.add_field(name = "BPM", value = bpm, inline = True)
         e.add_field(name = f"Key signature: {key} {scale}", value = f"Accuracy: {key_probability*100:.2f}%", inline = True)
     except Exception:
         pass
-
-### END ANALYSIS FUNCTION
+### END ACOUSTIC ANALYSIS FUNCTION
     
 ### START GET COVER ART FUNCTION
 async def get_cover_art(release_id, e):
+    
+    # Try to get the cover art from CoverArtArchive
     try:
-    # release["id"]
         print("Trying CoverArtArchive")
         redirect=requests.get(mb.get_image_list(release_id)["images"][0]["thumbnails"]["large"]).url
         e.set_thumbnail(url=redirect)
     except Exception:
+        
         # Try to get the cover art from Amazon
         try:
             print("Trying Amazon")
             response = requests.get(f'https://musicbrainz.org/ws/2/release/{release_id}?fmt=json')
             response.raise_for_status()
             asin = response.json()["asin"]
-            if asin:
-                e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
-            else:
-                e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
-                
+            if not asin:
+                raise ValueError("ASIN not found")
+            e.set_thumbnail(url=f"https://images-na.ssl-images-amazon.com/images/P/{asin}.jpg")
+            
         # Else set a dummy image
         except Exception:
+            print("Using fallback image")
             e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
-            pass
-        pass
 ### END GET COVER ART FUNCTION
 
-### START REACTION FUNCTION
-async def get_reaction(c, msg):
-    emojis = ["⏩","❌"]
-    for emoji in emojis:
-        await msg.add_reaction(emoji)
-            
-    def check_reaction(reaction, user):
-        return user != client.user and reaction.message == msg and user == c.author and reaction.emoji in emojis
-    reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-        
-    if str(reaction.emoji) == '⏩':
-        await msg.remove_reaction('⏩', user)
-        pass
-    if str(reaction.emoji) == "❌":
-        await msg.delete()
-        await c.message.delete()
-### END REACTION FUNCTION
-    
-### START USER COMMANDS  
+### START USER COMMANDS
 ### START DL COMMAND
 @client.command()
 async def dl(ctx, *, input: str):
-    ''' Graveyard Gamer Maneuver™ '''
+    ''' Interactive metadata lookup for a song. Usage example: !dl <artist> <title> '''
+    
     # Set the musicbrainz agent, and get the recordings
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
@@ -161,59 +117,57 @@ async def dl(ctx, *, input: str):
     # If song was found
     if result["recording-list"]:
         
-        # Set flag 
-        flag = False
-        message = None
-        
         # Loop through all of the songs
         for recording_index, recording in enumerate(result["recording-list"]):
             song = recording['title']
             artists = await parse_artists(recording["artist-credit"])
-            print(f"Song: {song}, Artist credit: {artists}")
+            print(f"Song #{recording_index+1}: {song}, Artist credit: {artists}")
             print(json.dumps(recording, indent=4)) 
             
             # Loop through all of the albums
             for release_index, release in enumerate(recording["release-list"]):
                 album = release["title"]
-                print(f'Album {release_index+1} title: {album}')
+                print(f'Album #{release_index+1}, Title: {album}')
                 
                 # Add embed and embed fields
                 e = discord.Embed(title = "Song has been found!", description = f'Song ({recording_index+1}/{str(len(result["recording-list"]))}), Album ({release_index+1}/{str(len(recording["release-list"]))})', color = 0x2ecc71)
+
                 # Retrieve BPM and key
                 await get_bpm_key(recording["id"], e)
+
+                # Set main fields
                 e.add_field(name = "Song", value = song, inline = False)
                 e.add_field(name = "Artist", value = artists, inline = False)
                 e.add_field(name = "Album", value = album, inline = False)
+                
                 # Try to get the cover art
                 await get_cover_art(release["id"], e)
 
                 # Check whether to send a new message or edit
-                if flag:
-                    await message.edit(embed=e)
-                else:
+                if recording_index == 0:
                     message = await ctx.send(embed=e)
-                    flag = True
+                else:
+                    await message.edit(embed=e)
                     
                 # Assign reactions to message
                 emojis = ["⏩","❌"]
                 for emoji in emojis:
                     await message.add_reaction(emoji)
-            
+
+                # Function that confirms that the user's reaction is valid and was placed on appropriate message
                 def check_reaction(reaction, user):
                     return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
+
+                # Wait for user to react
                 reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-        
+                
                 if str(reaction.emoji) == '⏩':
                     await message.remove_reaction('⏩', user)
                     pass
                 if str(reaction.emoji) == "❌":
                     await message.delete()
                     await ctx.message.delete()
-
-            else:
-                print("\n")
-                continue
-            break
+                    
     # If song was not found
     else:
         e = discord.Embed(title = "Song not found!", color = 0xff3232)
