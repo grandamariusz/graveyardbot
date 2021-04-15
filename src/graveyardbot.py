@@ -293,6 +293,56 @@ async def verify(ctx, user):
         avatar_url = f'https://osu.ppy.sh{avatar_url}'
     e.set_thumbnail(url=avatar_url)
     await ctx.send(embed = e)
+
+### START MAPS COMMAND
+@client.command()
+async def maps(ctx, user_id):
+    '''Fetches all maps from a user and filters them into beatmap status'''
+    response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user_id}/osu', headers={'Authorization': f'Bearer {await return_token()}'}).json()
+
+    # Main menu
+    while True:
+        e = discord.Embed(title=f"{user_id}'s Map List")
+        e.add_field(name= "<:taint:787461119584763944> Ranked", value = response['ranked_and_approved_beatmapset_count'], inline=False)
+        e.add_field(name= "️<:loved:832272605729914920>  Loved", value = response['loved_beatmapset_count'], inline=False)
+        e.add_field(name= "<:untaint:797823533400588308> Pending", value = response['unranked_beatmapset_count'], inline=False)
+        e.add_field(name= "<:grave:832263106934997052> Graveyard", value = response['graveyard_beatmapset_count'], inline=False)
+        e.set_thumbnail(url=response['avatar_url'])
+        message = await ctx.send(embed = e)
+
+        # Add category button reactions
+        emojis = ["<:taint:787461119584763944>", "<:loved:832272605729914920>", "<:untaint:797823533400588308>", "<:grave:832263106934997052>"]
+        for emoji in emojis:
+            await message.add_reaction(emoji)
+
+        # Function that confirms that the user's reaction is valid and was placed on appropriate message
+        def check_reaction(reaction, user):
+            print(reaction.emoji)
+            return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
+
+        # Wait for user to react
+        try:
+            reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
+        except Exception:
+            exit_flag = True
+            print("Reaction wait timed out")
+            await message.clear_reactions()
+            e.title = "Operation timed out!"
+            e.color = 0xe3e6df
+            await message.edit(embed=e)
+            break
+
+        # Perform appropriate operation upon reaction
+        if str(reaction.emoji) == "<:taint:787461119584763944>":
+            await ctx.send("Chose Ranked Maps")
+            print("Ranked")
+        if str(reaction.emoji) == '<:loved:832272605729914920>':
+            await ctx.send("Chose Loved Maps")
+        if str(reaction.emoji) == '<:untaint:797823533400588308>':
+            await ctx.send("Chose Uranked Maps")
+        if str(reaction.emoji) == "<:grave:832263106934997052>":
+            await ctx.send("Chose Graveyard Maps")
+### END MAPS COMMAND
 ### END USER COMMANDS
 
 ### START ADMIN COMMANDS
