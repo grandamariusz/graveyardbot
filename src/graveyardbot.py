@@ -1,4 +1,4 @@
-import discord, os, urllib.request, json, random, asyncio, requests, re, config
+import discord, os, urllib.request, json, random, asyncio, requests, re, config, math
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
 from datetime import datetime
@@ -301,25 +301,12 @@ async def maps(ctx, osu_user):
     response = requests.get(f'https://osu.ppy.sh/api/v2/users/{osu_user}/osu', headers={'Authorization': f'Bearer {await return_token()}'}).json()
     tainted_count = response['ranked_and_approved_beatmapset_count']
 
-    # Main menu
-    while True:
-        osu_username = response['username']
-        osu_user_id = response['id']
-        e = discord.Embed(title=f"{osu_username}'s Map List")
-        e.add_field(name="<:taint:787461119584763944> Ranked", value=response['ranked_and_approved_beatmapset_count'], inline=False)
-        e.add_field(name="️<:loved:832272605729914920>  Loved", value=response['loved_beatmapset_count'], inline=False)
-        e.add_field(name="<:untaint:797823533400588308> Pending", value=response['unranked_beatmapset_count'], inline=False)
-        e.add_field(name="<:grave:832263106934997052> Graveyard", value=response['graveyard_beatmapset_count'], inline=False)
-        e.set_thumbnail(url=response['avatar_url'])
-        message = await ctx.send(embed=e)
+    async def wait_for_reaction(message, e, emojis):
 
-        # Add category button reactions
-        emojis = ["<:taint:787461119584763944>", "<:loved:832272605729914920>", "<:untaint:797823533400588308>", "<:grave:832263106934997052>"]
         for emoji in emojis:
             await message.add_reaction(emoji)
 
-        # Function that confirms that the user's reaction is valid and was placed on appropriate message
-        def check_reaction(reaction, user):              
+        def check_reaction(reaction, user):
             return user != client.user and reaction.message == message and user == ctx.author and str(reaction.emoji) in emojis
 
         # Wait for user to react
@@ -332,26 +319,74 @@ async def maps(ctx, osu_user):
             e.title = "Operation timed out!"
             e.color = 0xe3e6df
             await message.edit(embed=e)
-            break
+            return None
+        return reaction
+
+    # Main menu
+    edit = False
+    while True:
+        osu_username = response['username']
+        osu_user_id = response['id']
+        e = discord.Embed(title=f"{osu_username}'s Map List")
+        e.add_field(name="<:taint:787461119584763944> Ranked", value=response['ranked_and_approved_beatmapset_count'], inline=False)
+        e.add_field(name="️<:loved:832272605729914920>  Loved", value=response['loved_beatmapset_count'], inline=False)
+        e.add_field(name="<:untaint:797823533400588308> Pending", value=response['unranked_beatmapset_count'], inline=False)
+        e.add_field(name="<:grave:832263106934997052> Graveyard", value=response['graveyard_beatmapset_count'], inline=False)
+        e.set_thumbnail(url=response['avatar_url'])
+        #message = await ctx.send(embed=e)
+        # Check whether to send a new message or edit
+        if not edit:
+            message = await ctx.send(embed=e)
+        else:
+            await message.edit(embed=e)
+
+        # Add category button reactions
+        emojis = ["<:taint:787461119584763944>", "<:loved:832272605729914920>", "<:untaint:797823533400588308>", "<:grave:832263106934997052>"]
+
+        reaction = await wait_for_reaction(message, e, emojis)
 
         # Perform appropriate operation upon reaction
+        if reaction is None:
+            break
         if str(reaction.emoji) == "<:taint:787461119584763944>":
             print("Ranked maps")
             await message.clear_reactions()
             #print(json.dumps(response, indent=4))
-            e = discord.Embed(title=f"{osu_username}'s tainted maps", color=0x4a412a)
-            e.set_thumbnail(url=response['avatar_url'])
+            #e = discord.Embed(title=f"{osu_username}'s tainted maps", color=0x4a412a)
+            #e.set_thumbnail(url=response['avatar_url'])
             offset = 0
+            page_total = math.ceil(tainted_count/5)
+            print(page_total)
 
-            for offset in range(0, tainted_count, 5):
-                print(offset)
+            for page, offset in enumerate(range(0, tainted_count, 5)):
+                print(f"offset: {offset}")
+                print(f"page: {page}")
                 ranked_maps_list = requests.get(f'https://osu.ppy.sh/api/v2/users/{osu_user_id}/beatmapsets/ranked_and_approved?limit=5&offset={offset}', headers={'Authorization': f'Bearer {await return_token()}'}).json()
+                e = discord.Embed(title=f"{osu_username}'s tainted maps", color=0x4a412a)
+                e.set_thumbnail(url=response['avatar_url'])
                 #print(json.dumps(ranked_maps_list, indent=4))
                 for ranked_map in ranked_maps_list:
                     map_name = f'{ranked_map["artist"]} - {ranked_map["title_unicode"]}'
                     map_link = f'https://osu.ppy.sh/s/{ranked_map["id"]}'
                     e.add_field(name=map_name, value=map_link, inline=False)
                 await message.edit(embed=e)
+                emojis = ["⏪", "⏩", "↩️"]
+                reaction = await wait_for_reaction(message, e, emojis)
+
+                if reaction is None:
+                    exit_flag = True
+                    break
+
+                if str(reaction.emoji) == '⏪':
+                    pass
+                if str(reaction.emoji) == '⏩':
+                    pass
+                if str(reaction.emoji) == '↩️':
+                    await message.clear_reactions()
+                    break
+
+        if exit_flag:
+            # Exit infinite loop
             break
 
         if str(reaction.emoji) == '<:loved:832272605729914920>':
@@ -360,6 +395,7 @@ async def maps(ctx, osu_user):
             await ctx.send("Chose Uranked Maps")
         if str(reaction.emoji) == "<:grave:832263106934997052>":
             await ctx.send("Chose Graveyard Maps")
+        edit = True
 ### END MAPS COMMAND
 ### END USER COMMANDS
 
