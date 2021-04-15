@@ -296,19 +296,20 @@ async def verify(ctx, user):
 
 ### START MAPS COMMAND
 @client.command()
-async def maps(ctx, user_id):
+async def maps(ctx, osu_user):
     '''Fetches all maps from a user and filters them into beatmap status'''
-    response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user_id}/osu', headers={'Authorization': f'Bearer {await return_token()}'}).json()
+    response = requests.get(f'https://osu.ppy.sh/api/v2/users/{osu_user}/osu', headers={'Authorization': f'Bearer {await return_token()}'}).json()
 
     # Main menu
     while True:
-        e = discord.Embed(title=f"{user_id}'s Map List")
-        e.add_field(name= "<:taint:787461119584763944> Ranked", value = response['ranked_and_approved_beatmapset_count'], inline=False)
-        e.add_field(name= "️<:loved:832272605729914920>  Loved", value = response['loved_beatmapset_count'], inline=False)
-        e.add_field(name= "<:untaint:797823533400588308> Pending", value = response['unranked_beatmapset_count'], inline=False)
-        e.add_field(name= "<:grave:832263106934997052> Graveyard", value = response['graveyard_beatmapset_count'], inline=False)
+        osu_username = response['username']
+        e = discord.Embed(title=f"{osu_user}'s Map List")
+        e.add_field(name="<:taint:787461119584763944> Ranked", value=response['ranked_and_approved_beatmapset_count'], inline=False)
+        e.add_field(name="️<:loved:832272605729914920>  Loved", value=response['loved_beatmapset_count'], inline=False)
+        e.add_field(name="<:untaint:797823533400588308> Pending", value=response['unranked_beatmapset_count'], inline=False)
+        e.add_field(name="<:grave:832263106934997052> Graveyard", value=response['graveyard_beatmapset_count'], inline=False)
         e.set_thumbnail(url=response['avatar_url'])
-        message = await ctx.send(embed = e)
+        message = await ctx.send(embed=e)
 
         # Add category button reactions
         emojis = ["<:taint:787461119584763944>", "<:loved:832272605729914920>", "<:untaint:797823533400588308>", "<:grave:832263106934997052>"]
@@ -333,7 +334,20 @@ async def maps(ctx, user_id):
 
         # Perform appropriate operation upon reaction
         if str(reaction.emoji) == "<:taint:787461119584763944>":
-            await ctx.send("Chose Ranked Maps")
+            print("Ranked maps")
+            await message.clear_reactions()
+            osu_user_id = response['id']
+            #print(json.dumps(response, indent=4))
+            e = discord.Embed(title=f"{osu_username}'s Ranked maps", color=0x4a412a)
+            e.set_thumbnail(url=response['avatar_url'])
+            ranked_maps_list = requests.get(f'https://osu.ppy.sh/api/v2/users/{osu_user_id}/beatmapsets/ranked_and_approved', headers={'Authorization': f'Bearer {await return_token()}'}).json()
+            print(json.dumps(ranked_maps_list, indent=4))
+            for ranked_map in ranked_maps_list:
+                map_name = f'{ranked_map["artist"]} - {ranked_map["title_unicode"]}'
+                map_link = f'https://osu.ppy.sh/s/{ranked_map["id"]}'
+                e.add_field(name=map_name, value=map_link, inline=False)
+            await message.edit(embed=e)
+            break
         if str(reaction.emoji) == '<:loved:832272605729914920>':
             await ctx.send("Chose Loved Maps")
         if str(reaction.emoji) == '<:untaint:797823533400588308>':
