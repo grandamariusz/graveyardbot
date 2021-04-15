@@ -316,9 +316,8 @@ async def maps(ctx, user_id):
             await message.add_reaction(emoji)
 
         # Function that confirms that the user's reaction is valid and was placed on appropriate message
-        def check_reaction(reaction, user):
-            print(reaction.emoji)
-            return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
+        def check_reaction(reaction, user):              
+            return user != client.user and reaction.message == message and user == ctx.author and str(reaction.emoji) in emojis
 
         # Wait for user to react
         try:
@@ -335,7 +334,6 @@ async def maps(ctx, user_id):
         # Perform appropriate operation upon reaction
         if str(reaction.emoji) == "<:taint:787461119584763944>":
             await ctx.send("Chose Ranked Maps")
-            print("Ranked")
         if str(reaction.emoji) == '<:loved:832272605729914920>':
             await ctx.send("Chose Loved Maps")
         if str(reaction.emoji) == '<:untaint:797823533400588308>':
