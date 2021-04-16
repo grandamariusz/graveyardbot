@@ -124,8 +124,8 @@ async def wait_for_reaction(ctx, message, e, emojis):
         reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
     except Exception as error:
         print(error)
+        print("Operation timed out!")
         await message.clear_reactions()
-        e.title = "Operation timed out!"
         e.color = 0xe3e6df
         await message.edit(embed=e)
         return None, None
@@ -356,6 +356,7 @@ async def sub_menu(ctx, submenu_title, submenu_color, beatmap_status, beatmap_co
         # Perform appropriate operation upon reaction
         if reaction is None:
             exit_flag = True
+            return exit_flag
             break
         if str(reaction.emoji) == '⏪':
             await message.remove_reaction('⏪', user)
@@ -411,7 +412,7 @@ async def maps(ctx, osu_user):
         if str(reaction.emoji) == '<:untaint:797823533400588308>':
             await sub_menu(ctx, f"{response['username']}'s pending maps", 0xcca633, "unranked", response['unranked_beatmapset_count'], response, message, exit_flag)
         if str(reaction.emoji) == "<:grave:832263106934997052>":
-            await sub_menu(ctx, f"{response['username']}'s graveyarded maps", 0x171a1c, "graveyard", response['graveyard_beatmapset_count'], response, message, exit_flag)
+            exit_flag = await sub_menu(ctx, f"{response['username']}'s graveyarded maps", 0x171a1c, "graveyard", response['graveyard_beatmapset_count'], response, message, exit_flag)
         edit = True
 ### END MAPS COMMAND
 ### END USER COMMANDS
