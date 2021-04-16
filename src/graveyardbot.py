@@ -138,21 +138,19 @@ async def wait_for_reaction(ctx, message, e, emojis):
 async def dl(ctx, *, input: str):
     ''' Interactive metadata lookup for a song. Usage example: !dl <artist> <title> '''
     
-    # Set the musicbrainz agent, and get the recordings
+    # Set the musicbrainz agent and get the recordings
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
 
     # If song was found
     if "recording-list" in result:
         
-        exit_flag = False
-        
         # Loop through all of the songs
+        exit_flag = False
         for recording_index, recording in enumerate(result["recording-list"]):
             song = recording['title']
             artists = await parse_artists(recording["artist-credit"])
             print(f"Song #{recording_index+1}: {song}, Artist credit: {artists}")
-            print(json.dumps(recording, indent=4)) 
 
             if "release-list" in recording:
                 # Loop through all of the albums
@@ -180,54 +178,31 @@ async def dl(ctx, *, input: str):
                     else:
                         await message.edit(embed=e)
                         
-                    # Assign reactions to message
-                    print(recording_index)
-                    print(release_index)
-                    print(len(result["recording-list"]))
-                    print(len(recording["release-list"]))
-
+                    # Determine which emojis to add
                     await message.clear_reactions()
-                    #await message.clear_reactions()
                     emojis = ["✅"]
                     if release_index + 1 < len(recording["release-list"]):
-                        print("release index was less than the total number of albums")
                         emojis.append("⏩")
                     if recording_index + 1 < len(result["recording-list"]):
-                        print("recording index was less than the total number of songs")
                         emojis.append("⏭")
                     emojis.append("🛑")
-                        
-                    for emoji in emojis:
-                        await message.add_reaction(emoji)
 
-                    # Function that confirms that the user's reaction is valid and was placed on appropriate message
-                    def check_reaction(reaction, user):
-                        return user != client.user and reaction.message == message and user == ctx.author and reaction.emoji in emojis
+                    # Add emojis and listen for reaction
+                    reaction, user = await wait_for_reaction(ctx, message, e, emojis)
 
-                    # Wait for user to react
-                    try:
-                        reaction, user = await client.wait_for("reaction_add", check=check_reaction, timeout=60)
-                    except Exception:
-                        exit_flag = True
-                        print("Reaction wait timed out")
-                        await message.clear_reactions()
-                        e.title = "Operation timed out!"
-                        e.color = 0xe3e6df
-                        await message.edit(embed=e)
-                        break
-                        
                     # Perform appropriate operation upon reaction
+                    if reaction is None:
+                        exit_flag = True
+                        break
                     if str(reaction.emoji) == '✅':
                         exit_flag = True
                         await message.clear_reactions()
                         await ctx.send("Song accepted.")
                     if str(reaction.emoji) == '⏩':
                         await message.remove_reaction('⏩', user)
-                        print("Loading next album...")
                         await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3b88c3))
                     if str(reaction.emoji) == '⏭':
                         await message.remove_reaction('⏭', user)
-                        print("Loading next song...")
                         await message.edit(embed=discord.Embed(title = "🔄 Loading next song...", color = 0x3b88c3))
                         break
                     if str(reaction.emoji) == "🛑":
@@ -347,7 +322,6 @@ def main_menu(response):
 
     for digit in str(tainted_count):
         if digit == "1":
-            print(f"{digit} is 1")
             tainted_spacer += "  "
     for digit in str(loved_count):
         if digit == "1":
@@ -400,7 +374,6 @@ async def sub_menu(ctx, submenu_title, submenu_color, beatmap_status, beatmap_co
         if reaction is None:
             exit_flag = True
             return exit_flag
-            break
         if str(reaction.emoji) == '⏪':
             await message.remove_reaction('⏪', user)
             if page == 0:
@@ -438,10 +411,8 @@ async def maps(ctx, osu_user):
         else:
             await message.edit(embed=e)
 
-        # Add category button reactions
+        # Add emojis and listen for reaction
         emojis = ["<:taint:787461119584763944>", "<:loved:832272605729914920>", "<:untaint:797823533400588308>", "<:grave:832263106934997052>"]
-
-        # Add and listen for reactions
         reaction, user = await wait_for_reaction(ctx, message, e, emojis)
 
         # Perform appropriate operation upon reaction
