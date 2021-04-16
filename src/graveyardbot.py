@@ -1,4 +1,4 @@
-import discord, os, urllib.request, json, random, asyncio, requests, re, config, math
+import discord, os, urllib.request, json, random, asyncio, requests, re, config, math, time
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
 from datetime import datetime
@@ -449,6 +449,21 @@ async def ban(ctx, member:discord.Member):
     channel = client.get_channel(config.announce_channel)
     #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
     await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
+
+@client.command()
+@commands.has_role("Admin")
+async def silence(ctx, member:discord.Member, duration):
+    ''' Silences a member. Use: !silence <@user> <duration-in-seconds>'''
+    try:
+        duration = abs(int(duration))
+        print(duration)
+        await ctx.send(f"Silenced {member.name} for {duration} seconds!")
+        await member.add_roles(discord.utils.get(ctx.guild.roles, name="Silenced"))
+        time.sleep(duration)
+        await member.remove_roles(discord.utils.get(ctx.guild.roles, name="Silenced"))
+        await ctx.send(f"{duration} seconds have elapsed. Unsilenced {member.name}")
+    except ValueError:
+        await ctx.send("Duration must be a positive integer.")
 ### END ADMIN COMMANDS
     
 client.run(config.discord_token)
