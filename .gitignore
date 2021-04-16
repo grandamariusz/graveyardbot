@@ -8,3 +8,6 @@ __pycache__/
 
 # Pycharm
 .idea
+
+# Database files
+*.db
