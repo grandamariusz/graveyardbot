@@ -146,18 +146,87 @@ async def dl(ctx, *, input: str):
     if "recording-list" in result:
         
         # Loop through all of the songs
-        exit_flag = False
-        for recording_index, recording in enumerate(result["recording-list"]):
-            song = recording['title']
-            artists = await parse_artists(recording["artist-credit"])
-            print(f"Song #{recording_index+1}: {song}, Artist credit: {artists}")
+        exit_flag = reset_flag = edit_flag = False
+        while not (exit_flag and reset_flag):
+            reset_flag = False
+            for recording_index, recording in enumerate(result["recording-list"]):
+                song = recording['title']
+                artists = await parse_artists(recording["artist-credit"])
+                print(f"Song #{recording_index+1}: {song}, Artist credit: {artists}")
 
-            if "release-list" in recording:
-                # Loop through all of the albums
-                for release_index, release in enumerate(recording["release-list"]):
-                    album = release["title"]
-                    print(f'\nAlbum #{release_index+1}, Title: {album}')
-                    
+                if "release-list" in recording:
+                    # Loop through all of the albums
+                    for release_index, release in enumerate(recording["release-list"]):
+                        album = release["title"]
+                        print(f'\nAlbum #{release_index+1}, Title: {album}')
+
+                        # Add embed and embed fields
+                        e = discord.Embed(title = "Song has been found!", color = 0x2ecc71)
+
+                        # Retrieve BPM and key
+                        await get_bpm_key(recording["id"], e)
+
+                        # Set main fields
+                        e.add_field(name = f'Song ({recording_index+1}/{str(len(result["recording-list"]))})', value = song, inline = False)
+                        e.add_field(name = f'Album ({release_index+1}/{str(len(recording["release-list"]))})', value = album, inline = False)
+                        e.add_field(name = "Artist", value = artists, inline = False)
+
+                        # Try to get the cover art
+                        await get_cover_art(release["id"], e)
+
+                        # Check whether to send a new message or edit
+                        if release_index == 0 and recording_index == 0 and not edit_flag:
+                            message = await ctx.send(embed=e)
+                        else:
+                            await message.edit(embed=e)
+
+                        # Determine which emojis to add
+                        await message.clear_reactions()
+                        emojis = ["✅"]
+                        if release_index + 1 < len(recording["release-list"]):
+                            emojis.append("⏩")
+                        if recording_index + 1 < len(result["recording-list"]):
+                            emojis.append("⏭")
+                        emojis.append("↩️")
+                        emojis.append("🛑")
+
+                        # Add emojis and listen for reaction
+                        reaction, user = await wait_for_reaction(ctx, message, e, emojis)
+
+                        # Perform appropriate operation upon reaction
+                        if reaction is None:
+                            exit_flag = reset_flag = True
+                            break
+                        if str(reaction.emoji) == '✅':
+                            exit_flag = reset_flag = True
+                            await message.clear_reactions()
+                            await ctx.send("Song accepted.")
+                        if str(reaction.emoji) == '⏩':
+                            await message.remove_reaction('⏩', user)
+                            await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3b88c3))
+                        if str(reaction.emoji) == '⏭':
+                            await message.remove_reaction('⏭', user)
+                            await message.edit(embed=discord.Embed(title = "🔄 Loading next song...", color = 0x3b88c3))
+                            break
+                        if str(reaction.emoji) == "↩️":
+                            reset_flag = edit_flag = True
+                            await message.clear_reactions()
+                            break
+                        if str(reaction.emoji) == "🛑":
+                            exit_flag = reset_flag = True
+                            await message.clear_reactions()
+                            await message.edit(embed=discord.Embed(title = "⚠️ Operation cancelled!", color = 0xffcc4d))
+
+                        if exit_flag:
+                            # Exit release loop
+                            break
+
+                    if exit_flag or reset_flag:
+                        # Exit recording loop
+                        break
+
+                # If no release was found
+                else:
                     # Add embed and embed fields
                     e = discord.Embed(title = "Song has been found!", color = 0x2ecc71)
 
@@ -166,73 +235,11 @@ async def dl(ctx, *, input: str):
 
                     # Set main fields
                     e.add_field(name = f'Song ({recording_index+1}/{str(len(result["recording-list"]))})', value = song, inline = False)
-                    e.add_field(name = f'Album ({release_index+1}/{str(len(recording["release-list"]))})', value = album, inline = False)
                     e.add_field(name = "Artist", value = artists, inline = False)
-                    
-                    # Try to get the cover art
-                    await get_cover_art(release["id"], e)
 
-                    # Check whether to send a new message or edit
-                    if release_index == 0 and recording_index == 0:
-                        message = await ctx.send(embed=e)
-                    else:
-                        await message.edit(embed=e)
-                        
-                    # Determine which emojis to add
-                    await message.clear_reactions()
-                    emojis = ["✅"]
-                    if release_index + 1 < len(recording["release-list"]):
-                        emojis.append("⏩")
-                    if recording_index + 1 < len(result["recording-list"]):
-                        emojis.append("⏭")
-                    emojis.append("🛑")
-
-                    # Add emojis and listen for reaction
-                    reaction, user = await wait_for_reaction(ctx, message, e, emojis)
-
-                    # Perform appropriate operation upon reaction
-                    if reaction is None:
-                        exit_flag = True
-                        break
-                    if str(reaction.emoji) == '✅':
-                        exit_flag = True
-                        await message.clear_reactions()
-                        await ctx.send("Song accepted.")
-                    if str(reaction.emoji) == '⏩':
-                        await message.remove_reaction('⏩', user)
-                        await message.edit(embed=discord.Embed(title = "🔄 Loading next album...", color = 0x3b88c3))
-                    if str(reaction.emoji) == '⏭':
-                        await message.remove_reaction('⏭', user)
-                        await message.edit(embed=discord.Embed(title = "🔄 Loading next song...", color = 0x3b88c3))
-                        break
-                    if str(reaction.emoji) == "🛑":
-                        exit_flag = True
-                        await message.clear_reactions()
-                        await message.edit(embed=discord.Embed(title = "⚠️ Operation cancelled!", color = 0xffcc4d))
-
-                    if exit_flag:
-                        # Exit release loop
-                        break
-                    
-                if exit_flag:
-                    # Exit recording loop
-                    break
-
-            # If no release was found
-            else:
-                # Add embed and embed fields
-                e = discord.Embed(title = "Song has been found!", color = 0x2ecc71)
-
-                # Retrieve BPM and key
-                await get_bpm_key(recording["id"], e)
-
-                # Set main fields
-                e.add_field(name = f'Song ({recording_index+1}/{str(len(result["recording-list"]))})', value = song, inline = False)
-                e.add_field(name = "Artist", value = artists, inline = False)
-                
-                # Set dummy cover art
-                e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
-                await ctx.send(embed = e)
+                    # Set dummy cover art
+                    e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
+                    await ctx.send(embed = e)
                 
     # If song was not found
     else:
