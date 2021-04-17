@@ -592,7 +592,7 @@ def main_menu(response):
         f"{emotes['grave']} ⎯⎯⎯⎯⎯⎯⎯  Graveyard  ⎯⎯⎯⎯⎯⎯⎯ {emotes['grave']}"
     ]
 
-    def embellish(number):
+    def embellish(number, embellishment):
         spacer = " "
         if number < 10:
             spacer += " "
@@ -601,12 +601,13 @@ def main_menu(response):
         for digit in str(number):
             if digit == "1":
                 spacer += "  "
-            return f"⎹ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⌠{spacer}{number}{spacer}⌡ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⎸"
+            return f"⎹ {embellishment} ⌠{spacer}{number}{spacer}⌡ {embellishment} ⎸"
 
     # Add category fields with their beatmap counts and apply length adjustments respectively
     e = discord.Embed(title=f"{response['username']}'s Map List")
     for i in range(4):
-        e.add_field(name=titles[i], value=embellish(counts[i]), inline=False)
+        embellishment = embellish(counts[i], "⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼" if i % 2 == 0 else "⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻")
+        e.add_field(name=titles[i], value=embellishment, inline=False)
     e.set_thumbnail(url=response['avatar_url'])
     return e
 
