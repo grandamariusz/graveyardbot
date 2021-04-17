@@ -623,7 +623,7 @@ async def sub_menu(ctx, submenu_title, submenu_color, beatmap_status, beatmap_co
     page_total = math.ceil(beatmap_count / limit) or 1
     while True:
         # Grab 5 maps from user sorted by latest updated
-        if page_total > 0:
+        if beatmap_count > 0:
             beatmap_list = requests.get(f'https://osu.ppy.sh/api/v2/users/{osu_user_id}/beatmapsets/{beatmap_status}?limit={limit}&offset={page * limit}', headers={'Authorization': f'Bearer {await return_token()}'}).json()
         else:
             # prevent unnecessary request
