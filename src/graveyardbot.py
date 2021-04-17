@@ -577,52 +577,35 @@ async def verify(ctx, user):
 
 def main_menu(response):
     # Assign beatmap counts and spacers
-    tainted_count = response['ranked_and_approved_beatmapset_count']
-    loved_count = response['loved_beatmapset_count']
-    pending_count = response['unranked_beatmapset_count']
-    graveyard_count = response['graveyard_beatmapset_count']
-    tainted_spacer = " "
-    loved_spacer = " "
-    pending_spacer = " "
-    graveyard_spacer = " "
+    counts = [
+        response['ranked_and_approved_beatmapset_count'],
+        response['loved_beatmapset_count'],
+        response['unranked_beatmapset_count'],
+        response['graveyard_beatmapset_count']
+    ]
 
-    # Automatic string length adjustments
-    if tainted_count < 10:
-        tainted_spacer += " "
-    elif tainted_count > 99:
-        tainted_spacer = ""
-    if loved_count < 10:
-        loved_spacer += " "
-    elif loved_count > 99:
-        loved_spacer = ""
-    if pending_count < 10:
-        pending_spacer += " "
-    elif pending_count > 99:
-        pending_spacer = ""
-    if graveyard_count < 10:
-        graveyard_spacer += " "
-    elif graveyard_count > 99:
-        graveyard_spacer = ""
+    titles = [
+        "<:taint:787461119584763944> ⎯⎯⎯⎯⎯⎯⎯⎯  Tainted  ⎯⎯⎯⎯⎯⎯⎯⎯ <:taint:787461119584763944>",
+        "<:loved:832272605729914920> ⎯⎯⎯⎯⎯⎯⎯⎯⎯  Loved  ⎯⎯⎯⎯⎯⎯⎯⎯⎯ <:loved:832272605729914920>",
+        "<:untaint:797823533400588308> ⎯⎯⎯⎯⎯⎯⎯⎯  Pending  ⎯⎯⎯⎯⎯⎯⎯⎯ <:untaint:797823533400588308>",
+        "<:grave:832263106934997052> ⎯⎯⎯⎯⎯⎯⎯  Graveyard  ⎯⎯⎯⎯⎯⎯⎯ <:grave:832263106934997052>"
+    ]
 
-    for digit in str(tainted_count):
-        if digit == "1":
-            tainted_spacer += "  "
-    for digit in str(loved_count):
-        if digit == "1":
-            loved_spacer += "  "
-    for digit in str(pending_count):
-        if digit == "1":
-            pending_spacer += "  "
-    for digit in str(graveyard_count):
-        if digit == "1":
-            graveyard_spacer += "  "
+    def embellish(number):
+        spacer = " "
+        if number < 10:
+            spacer += " "
+        if number > 99:
+            spacer = ""
+        for digit in str(number):
+            if digit == "1":
+                spacer += "  "
+            return f"⎹ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⌠{spacer}{number}{spacer}⌡ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⎸"
 
     # Add category fields with their beatmap counts and apply length adjustments respectively
     e = discord.Embed(title=f"{response['username']}'s Map List")
-    e.add_field(name="<:taint:787461119584763944> ⎯⎯⎯⎯⎯⎯⎯⎯  Tainted  ⎯⎯⎯⎯⎯⎯⎯⎯ <:taint:787461119584763944>", value=f"⎹ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⌠{tainted_spacer}{tainted_count}{tainted_spacer}⌡ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⎸", inline=False)
-    e.add_field(name="️<:loved:832272605729914920> ⎯⎯⎯⎯⎯⎯⎯⎯⎯  Loved  ⎯⎯⎯⎯⎯⎯⎯⎯⎯ <:loved:832272605729914920>", value=f"⎹ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⌠{loved_spacer}{loved_count}{loved_spacer}⌡ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⎸", inline=False)
-    e.add_field(name="<:untaint:797823533400588308> ⎯⎯⎯⎯⎯⎯⎯⎯  Pending  ⎯⎯⎯⎯⎯⎯⎯⎯ <:untaint:797823533400588308>", value=f"⎹ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⌠{pending_spacer}{pending_count}{pending_spacer}⌡ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⎸", inline=False)
-    e.add_field(name="<:grave:832263106934997052> ⎯⎯⎯⎯⎯⎯⎯  Graveyard  ⎯⎯⎯⎯⎯⎯⎯ <:grave:832263106934997052>", value=f"⎹ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⌠{graveyard_spacer}{graveyard_count}{graveyard_spacer}⌡ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⎸", inline=False)
+    for i in range(4):
+        e.add_field(name=titles[i], value=embellish(counts[i]), inline=False)
     e.set_thumbnail(url=response['avatar_url'])
     return e
 
