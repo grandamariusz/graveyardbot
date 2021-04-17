@@ -548,26 +548,23 @@ async def verify(ctx, user):
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
 
-    # perhaps simplify this
-    role1 = discord.utils.get(ctx.guild.roles, name="Graveyard Rookie (<5 Maps)")
-    role2 = discord.utils.get(ctx.guild.roles, name="Graveyard Amateur (5-15 Maps)")
-    role3 = discord.utils.get(ctx.guild.roles, name="Graveyard Adept (15-30 Maps)")
-    role4 = discord.utils.get(ctx.guild.roles, name="Graveyard Veteran (30-50 Maps)")
-    role5 = discord.utils.get(ctx.guild.roles, name="Graveyard Revenant (50+ Maps)")
-    role6 = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
+    roles = [
+        "Graveyard Rookie (<5 Maps)",
+        "Graveyard Amateur (5-15 Maps)",
+        "Graveyard Adept (15-30 Maps)",
+        "Graveyard Veteran (30-50 Maps)",
+        "Graveyard Revenant (50+ Maps)"
+    ]
 
     if tainted > 0:
-        await ctx.author.add_roles(role6)
-    elif graved in range(0,5):
-        await ctx.author.add_roles(role1)
-    elif graved in range(5,15):
-        await ctx.author.add_roles(role2)
-    elif graved in range(15,30):
-        await ctx.author.add_roles(role3)
-    elif graved in range(30,50):
-        await ctx.author.add_roles(role4)
-    elif graved in range(50,666):
-        await ctx.author.add_roles(role5)
+        role = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
+        await ctx.author.add_roles(role)
+    else:
+        for index, requirement in enumerate([5, 15, 30, 50, float("inf")]):
+            if graved < requirement:
+                role = discord.utils.get(ctx.guild.roles, name=roles[index])
+                await ctx.author.add_roles(role)
+                break
     await ctx.author.remove_roles(discord.utils.get(ctx.guild.roles, name="Newcomers"))
 
     e = discord.Embed(title = f"User Verified!")
