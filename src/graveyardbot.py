@@ -22,8 +22,7 @@ client = commands.Bot(command_prefix=config.prefix, intents=intents)
 db = Database("secrets.db")
 db.execute("create table if not exists tokens (name text unique, value text, expiry_date text default \"0001-01-01 00:00:00.000000\")")
 
-tmp_token=''
-date=''
+emotes = config.emotes
 
 @client.event
 async def on_ready():
@@ -521,12 +520,8 @@ countries = {
     "Zimbabwe": ":flag_zw:"
 }
 
-@client.command()
-async def user(ctx, user_id):
-    '''User details. Use: !user <osu_username>'''
-    try:
-        response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user_id}/osu', headers={'Authorization': f'Bearer {await return_token()}' }).json()
-        e = discord.Embed(title = f"User Details")
+def user_card(response, title = "User details"):
+        e = discord.Embed(title = title)
         e.add_field(name = "Username", value = response['username'])
         e.add_field(name = "Online", value = ':green_circle:' if response['is_online'] else ':red_circle:')
         e.add_field(name = "Country", value = countries[response['country']['name']])
@@ -534,12 +529,23 @@ async def user(ctx, user_id):
         e.add_field(name = "Graveyarded Maps", value = response['graveyard_beatmapset_count'])
         e.add_field(name = "Ranked Maps", value = response['ranked_and_approved_beatmapset_count'])
         e.add_field(name = "Play Time", value = f"{int(response['statistics']['play_time']) // 3600}h")
-        e.add_field(name="Rank", value = f"#{response['statistics']['global_rank']}")
-        e.set_thumbnail(url=response['avatar_url'])
+        global_rank = response["statistics"]["global_rank"]
+        e.add_field(name="Rank", value = f"{'#' + str(global_rank) if global_rank is not None else '-'}")
+        avatar_url = response['avatar_url']
+        if 'avatar-guest' in avatar_url:
+            avatar_url = f'https://osu.ppy.sh{avatar_url}'
+        e.set_thumbnail(url=avatar_url)
+        return e
+
+@client.command()
+async def user(ctx, user_id):
+    '''User details. Use: !user <osu_username>'''
+    try:
+        response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user_id}/osu', headers={'Authorization': f'Bearer {await return_token()}' }).json()
+        e = user_card(response)
         await ctx.send(embed = e)
     except Exception:
         await ctx.send("User not found.")
-
 
 @client.command()
 async def verify(ctx, user):
@@ -548,84 +554,59 @@ async def verify(ctx, user):
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
 
-    # perhaps simplify this
-    role1 = discord.utils.get(ctx.guild.roles, name="Graveyard Rookie (<5 Maps)")
-    role2 = discord.utils.get(ctx.guild.roles, name="Graveyard Amateur (5-15 Maps)")
-    role3 = discord.utils.get(ctx.guild.roles, name="Graveyard Adept (15-30 Maps)")
-    role4 = discord.utils.get(ctx.guild.roles, name="Graveyard Veteran (30-50 Maps)")
-    role5 = discord.utils.get(ctx.guild.roles, name="Graveyard Revenant (50+ Maps)")
-    role6 = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
+    roles = [
+        "Graveyard Rookie (<5 Maps)",
+        "Graveyard Amateur (5-15 Maps)",
+        "Graveyard Adept (15-30 Maps)",
+        "Graveyard Veteran (30-50 Maps)",
+        "Graveyard Revenant (50+ Maps)"
+    ]
 
     if tainted > 0:
-        await ctx.author.add_roles(role6)
-    elif graved in range(0,5):
-        await ctx.author.add_roles(role1)
-    elif graved in range(5,15):
-        await ctx.author.add_roles(role2)
-    elif graved in range(15,30):
-        await ctx.author.add_roles(role3)
-    elif graved in range(30,50):
-        await ctx.author.add_roles(role4)
-    elif graved in range(50,666):
-        await ctx.author.add_roles(role5)
+        role = discord.utils.get(ctx.guild.roles, name="Tainted Mapper")
+        await ctx.author.add_roles(role)
+    else:
+        for index, requirement in enumerate([5, 15, 30, 50, float("inf")]):
+            if graved < requirement:
+                role = discord.utils.get(ctx.guild.roles, name=roles[index])
+                await ctx.author.add_roles(role)
+                break
     await ctx.author.remove_roles(discord.utils.get(ctx.guild.roles, name="Newcomers"))
 
-    e = discord.Embed(title = f"User Verified!")
-    e.add_field(name = "Username", value = response['username'], inline=False)
-    avatar_url = response['avatar_url']
-    if 'avatar-guest' in avatar_url:
-        avatar_url = f'https://osu.ppy.sh{avatar_url}'
-    e.set_thumbnail(url=avatar_url)
+    e = user_card(response, title = "User verified!")
     await ctx.send(embed = e)
 
 def main_menu(response):
     # Assign beatmap counts and spacers
-    tainted_count = response['ranked_and_approved_beatmapset_count']
-    loved_count = response['loved_beatmapset_count']
-    pending_count = response['unranked_beatmapset_count']
-    graveyard_count = response['graveyard_beatmapset_count']
-    tainted_spacer = " "
-    loved_spacer = " "
-    pending_spacer = " "
-    graveyard_spacer = " "
+    counts = [
+        response['ranked_and_approved_beatmapset_count'],
+        response['loved_beatmapset_count'],
+        response['unranked_beatmapset_count'],
+        response['graveyard_beatmapset_count']
+    ]
 
-    # Automatic string length adjustments
-    if tainted_count < 10:
-        tainted_spacer += " "
-    elif tainted_count > 99:
-        tainted_spacer = ""
-    if loved_count < 10:
-        loved_spacer += " "
-    elif loved_count > 99:
-        loved_spacer = ""
-    if pending_count < 10:
-        pending_spacer += " "
-    elif pending_count > 99:
-        pending_spacer = ""
-    if graveyard_count < 10:
-        graveyard_spacer += " "
-    elif graveyard_count > 99:
-        graveyard_spacer = ""
+    titles = [
+        f"{emotes['taint']} ⎯⎯⎯⎯⎯⎯⎯⎯  Tainted  ⎯⎯⎯⎯⎯⎯⎯⎯ {emotes['taint']}",
+        f"{emotes['loved']} ⎯⎯⎯⎯⎯⎯⎯⎯⎯  Loved  ⎯⎯⎯⎯⎯⎯⎯⎯⎯ {emotes['loved']}",
+        f"{emotes['untaint']} ⎯⎯⎯⎯⎯⎯⎯⎯  Pending  ⎯⎯⎯⎯⎯⎯⎯⎯ {emotes['untaint']}",
+        f"{emotes['grave']} ⎯⎯⎯⎯⎯⎯⎯  Graveyard  ⎯⎯⎯⎯⎯⎯⎯ {emotes['grave']}"
+    ]
 
-    for digit in str(tainted_count):
-        if digit == "1":
-            tainted_spacer += "  "
-    for digit in str(loved_count):
-        if digit == "1":
-            loved_spacer += "  "
-    for digit in str(pending_count):
-        if digit == "1":
-            pending_spacer += "  "
-    for digit in str(graveyard_count):
-        if digit == "1":
-            graveyard_spacer += "  "
+    def embellish(number):
+        spacer = " "
+        if number < 10:
+            spacer += " "
+        if number > 99:
+            spacer = ""
+        for digit in str(number):
+            if digit == "1":
+                spacer += "  "
+            return f"⎹ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⌠{spacer}{number}{spacer}⌡ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⎸"
 
     # Add category fields with their beatmap counts and apply length adjustments respectively
     e = discord.Embed(title=f"{response['username']}'s Map List")
-    e.add_field(name="<:taint:787461119584763944> ⎯⎯⎯⎯⎯⎯⎯⎯  Tainted  ⎯⎯⎯⎯⎯⎯⎯⎯ <:taint:787461119584763944>", value=f"⎹ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⌠{tainted_spacer}{tainted_count}{tainted_spacer}⌡ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⎸", inline=False)
-    e.add_field(name="️<:loved:832272605729914920> ⎯⎯⎯⎯⎯⎯⎯⎯⎯  Loved  ⎯⎯⎯⎯⎯⎯⎯⎯⎯ <:loved:832272605729914920>", value=f"⎹ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⌠{loved_spacer}{loved_count}{loved_spacer}⌡ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⎸", inline=False)
-    e.add_field(name="<:untaint:797823533400588308> ⎯⎯⎯⎯⎯⎯⎯⎯  Pending  ⎯⎯⎯⎯⎯⎯⎯⎯ <:untaint:797823533400588308>", value=f"⎹ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⌠{pending_spacer}{pending_count}{pending_spacer}⌡ ⎼⎻⎺⎻⎼⎽⎼⎻⎺⎻⎼ ⎸", inline=False)
-    e.add_field(name="<:grave:832263106934997052> ⎯⎯⎯⎯⎯⎯⎯  Graveyard  ⎯⎯⎯⎯⎯⎯⎯ <:grave:832263106934997052>", value=f"⎹ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⌠{graveyard_spacer}{graveyard_count}{graveyard_spacer}⌡ ⎻⎼⎽⎼⎻⎺⎻⎼⎽⎼⎻ ⎸", inline=False)
+    for i in range(4):
+        e.add_field(name=titles[i], value=embellish(counts[i]), inline=False)
     e.set_thumbnail(url=response['avatar_url'])
     return e
 
@@ -638,10 +619,14 @@ async def sub_menu(ctx, submenu_title, submenu_color, beatmap_status, beatmap_co
     # Iterates over a user's beatmaps in groups of 5
     page = 0
     limit = 5
-    page_total = math.floor(beatmap_count / limit + 1)
+    page_total = math.ceil(beatmap_count / limit) or 1
     while True:
         # Grab 5 maps from user sorted by latest updated
-        beatmap_list = requests.get(f'https://osu.ppy.sh/api/v2/users/{osu_user_id}/beatmapsets/{beatmap_status}?limit={limit}&offset={page * limit}', headers={'Authorization': f'Bearer {await return_token()}'}).json()
+        if page_total > 0:
+            beatmap_list = requests.get(f'https://osu.ppy.sh/api/v2/users/{osu_user_id}/beatmapsets/{beatmap_status}?limit={limit}&offset={page * limit}', headers={'Authorization': f'Bearer {await return_token()}'}).json()
+        else:
+            # prevent unnecessary request
+            beatmap_list = []
 
         # Create and populate embed with beatmaps
         e = discord.Embed(title=submenu_title, color=submenu_color)
@@ -699,20 +684,20 @@ async def maps(ctx, osu_user):
             await message.edit(embed=e)
 
         # Add emojis and listen for reaction
-        emojis = ["<:taint:787461119584763944>", "<:loved:832272605729914920>", "<:untaint:797823533400588308>", "<:grave:832263106934997052>"]
+        emojis = [emotes['taint'], emotes['loved'], emotes['untaint'], emotes['grave']]
         reaction, user = await wait_for_reaction(ctx, message, e, emojis)
 
         # Perform appropriate operation upon reaction
         if reaction is None:
             break
-        if str(reaction.emoji) == "<:taint:787461119584763944>":
+        if str(reaction.emoji) == emotes['taint']:
             print("Ranked maps")
             await sub_menu(ctx, f"{response['username']}'s tainted maps", 0x4a412a, "ranked_and_approved", response['ranked_and_approved_beatmapset_count'], response, message, exit_flag)
-        if str(reaction.emoji) == '<:loved:832272605729914920>':
+        if str(reaction.emoji) == emotes['loved']:
             await sub_menu(ctx, f"{response['username']}'s loved maps", 0xff66aa, "loved", response['loved_beatmapset_count'], response, message, exit_flag)
-        if str(reaction.emoji) == '<:untaint:797823533400588308>':
+        if str(reaction.emoji) == emotes['untaint']:
             await sub_menu(ctx, f"{response['username']}'s pending maps", 0xcca633, "unranked", response['unranked_beatmapset_count'], response, message, exit_flag)
-        if str(reaction.emoji) == "<:grave:832263106934997052>":
+        if str(reaction.emoji) == emotes['grave']:
             exit_flag = await sub_menu(ctx, f"{response['username']}'s graveyarded maps", 0x171a1c, "graveyard", response['graveyard_beatmapset_count'], response, message, exit_flag)
         edit = True
 ### END MAPS COMMAND
@@ -725,8 +710,8 @@ async def kick(ctx, member:discord.Member):
     ''' Kicks a member. Use: !kick <@user> '''
     await member.kick()
     channel = client.get_channel(config.announce_channel)
-    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
-    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
+    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** {emotes['tux']}")
+    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.kick_punishment)}** {emotes['tux']}")
 
 @client.command()
 @commands.has_role("Admin")
@@ -734,8 +719,8 @@ async def ban(ctx, member:discord.Member):
     ''' Bans a member. Use: !ban <@user> '''
     await member.ban()
     channel = client.get_channel(config.announce_channel)
-    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
-    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
+    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** {emotes['tux']}")
+    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.ban_punishment)}** {emotes['tux']}")
 
 @client.command()
 @commands.has_role("Admin")
