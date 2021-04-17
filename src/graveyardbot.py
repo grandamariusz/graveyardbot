@@ -1,13 +1,26 @@
 import discord, os, urllib.request, json, random, asyncio, requests, re, config, math, time
 from discord.ext import tasks, commands
 from osuapi import OsuApi, ReqConnector
-from datetime import datetime
+from database import Database
+from datetime import datetime, timedelta
 import musicbrainzngs as mb
 
 intents = discord.Intents.default()
 intents.members = True
 intents.reactions = True
 client = commands.Bot(command_prefix=config.prefix, intents=intents)
+
+# Create and setup database with a "tokens" table
+# Basic idea is that we store them like this
+# +---------+---------------+--------------+
+# | name    | value         | expiry_date  |
+# +---------+---------------+--------------+
+# | osu_api | <the_token>   | <time_stamp> |
+# | ripple  | <another_one> | <time_stamp> |
+# | etc..   | <more_stuff>  | <time_stamp> |
+# +---------+---------------+--------------+
+db = Database("secrets.db")
+db.execute("create table if not exists tokens (name text unique, value text, expiry_date text default \"0001-01-01 00:00:00.000000\")")
 
 tmp_token=''
 date=''
@@ -26,25 +39,31 @@ async def on_member_join(member):
 
 async def return_token():
     '''return temporary token / retrieve new token'''
-    global tmp_token
-    global date
-    url = 'https://osu.ppy.sh/oauth/token'
-    data = {'client_id': config.api_id,'client_secret': config.api_token,'grant_type': 'client_credentials','scope': 'public'}
-    
-    if tmp_token:
-        if datetime.now().timestamp() - date >= 86000:
-            print("Token older than 30 seconds, retrieving new one")
-            tmp_token = requests.post(url, data).json()
-            date = datetime.now().timestamp()
-            return tmp_token['access_token']
-        else:
-            print("Using token retrieved earlier")
-            return tmp_token['access_token']
+    now = datetime.today()
+
+    # Get token from database
+    ret = db.tokens["osu_api"]
+    # If there is no token, the expiry will be set to the minimum time possible
+    expiry_date = ret and ret.expiry_date or str(datetime.min)
+
+    # If the token has expired, get a new one
+    if datetime.fromisoformat(expiry_date) <= now:
+        print("Old osu!api auth token has expired, retreiving new one")
+        url = "https://osu.ppy.sh/oauth/token"
+        data = {"client_id": config.api_id,
+                "client_secret": config.api_token,
+                "grant_type": "client_credentials",
+                "scope": "public"}
+        token = requests.post(url, data).json()
+
+        # Store new token and expiry date in database
+        db.tokens["osu_api"] = {
+            "value": token["access_token"],
+            "expiry_date": str(now + timedelta(seconds=token["expires_in"]))
+        }
     else:
-        print("Retrieving new token")
-        tmp_token = requests.post(url, data).json()
-        date = datetime.now().timestamp()
-        return tmp_token['access_token']
+        print("Reusing existing osu!api auth token")
+    return db.tokens["osu_api"].value
 
 ### START ARTIST PARSING FUNCTION
 async def parse_artists(artist_credit):
