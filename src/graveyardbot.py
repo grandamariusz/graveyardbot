@@ -22,8 +22,7 @@ client = commands.Bot(command_prefix=config.prefix, intents=intents)
 db = Database("secrets.db")
 db.execute("create table if not exists tokens (name text unique, value text, expiry_date text default \"0001-01-01 00:00:00.000000\")")
 
-tmp_token=''
-date=''
+emotes = config.emotes
 
 @client.event
 async def on_ready():
@@ -585,10 +584,10 @@ def main_menu(response):
     ]
 
     titles = [
-        "<:taint:787461119584763944> ⎯⎯⎯⎯⎯⎯⎯⎯  Tainted  ⎯⎯⎯⎯⎯⎯⎯⎯ <:taint:787461119584763944>",
-        "<:loved:832272605729914920> ⎯⎯⎯⎯⎯⎯⎯⎯⎯  Loved  ⎯⎯⎯⎯⎯⎯⎯⎯⎯ <:loved:832272605729914920>",
-        "<:untaint:797823533400588308> ⎯⎯⎯⎯⎯⎯⎯⎯  Pending  ⎯⎯⎯⎯⎯⎯⎯⎯ <:untaint:797823533400588308>",
-        "<:grave:832263106934997052> ⎯⎯⎯⎯⎯⎯⎯  Graveyard  ⎯⎯⎯⎯⎯⎯⎯ <:grave:832263106934997052>"
+        f"{emotes['taint']} ⎯⎯⎯⎯⎯⎯⎯⎯  Tainted  ⎯⎯⎯⎯⎯⎯⎯⎯ {emotes['taint']}",
+        f"{emotes['loved']} ⎯⎯⎯⎯⎯⎯⎯⎯⎯  Loved  ⎯⎯⎯⎯⎯⎯⎯⎯⎯ {emotes['loved']}",
+        f"{emotes['untaint']} ⎯⎯⎯⎯⎯⎯⎯⎯  Pending  ⎯⎯⎯⎯⎯⎯⎯⎯ {emotes['untaint']}",
+        f"{emotes['grave']} ⎯⎯⎯⎯⎯⎯⎯  Graveyard  ⎯⎯⎯⎯⎯⎯⎯ {emotes['grave']}"
     ]
 
     def embellish(number):
@@ -679,20 +678,20 @@ async def maps(ctx, osu_user):
             await message.edit(embed=e)
 
         # Add emojis and listen for reaction
-        emojis = ["<:taint:787461119584763944>", "<:loved:832272605729914920>", "<:untaint:797823533400588308>", "<:grave:832263106934997052>"]
+        emojis = [emotes['taint'], emotes['loved'], emotes['untaint'], emotes['grave']]
         reaction, user = await wait_for_reaction(ctx, message, e, emojis)
 
         # Perform appropriate operation upon reaction
         if reaction is None:
             break
-        if str(reaction.emoji) == "<:taint:787461119584763944>":
+        if str(reaction.emoji) == emotes['taint']:
             print("Ranked maps")
             await sub_menu(ctx, f"{response['username']}'s tainted maps", 0x4a412a, "ranked_and_approved", response['ranked_and_approved_beatmapset_count'], response, message, exit_flag)
-        if str(reaction.emoji) == '<:loved:832272605729914920>':
+        if str(reaction.emoji) == emotes['loved']:
             await sub_menu(ctx, f"{response['username']}'s loved maps", 0xff66aa, "loved", response['loved_beatmapset_count'], response, message, exit_flag)
-        if str(reaction.emoji) == '<:untaint:797823533400588308>':
+        if str(reaction.emoji) == emotes['untaint']:
             await sub_menu(ctx, f"{response['username']}'s pending maps", 0xcca633, "unranked", response['unranked_beatmapset_count'], response, message, exit_flag)
-        if str(reaction.emoji) == "<:grave:832263106934997052>":
+        if str(reaction.emoji) == emotes['grave']:
             exit_flag = await sub_menu(ctx, f"{response['username']}'s graveyarded maps", 0x171a1c, "graveyard", response['graveyard_beatmapset_count'], response, message, exit_flag)
         edit = True
 ### END MAPS COMMAND
@@ -705,8 +704,8 @@ async def kick(ctx, member:discord.Member):
     ''' Kicks a member. Use: !kick <@user> '''
     await member.kick()
     channel = client.get_channel(config.announce_channel)
-    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
-    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.kick_punishment)}** <:tux:775785821768122459>")
+    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.kick_punishment)}** {emotes['tux']}")
+    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.kick_punishment)}** {emotes['tux']}")
 
 @client.command()
 @commands.has_role("Admin")
@@ -714,8 +713,8 @@ async def ban(ctx, member:discord.Member):
     ''' Bans a member. Use: !ban <@user> '''
     await member.ban()
     channel = client.get_channel(config.announce_channel)
-    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
-    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.ban_punishment)}** <:tux:775785821768122459>")
+    #await channel.send("**User **" +"`"+(member.nick if member.nick else member.name)+"`"+ f"** {random.choice(config.ban_punishment)}** {emotes['tux']}")
+    await channel.send(f"**User **`{(member.nick if member.nick else member.name)}` **{random.choice(config.ban_punishment)}** {emotes['tux']}")
 
 @client.command()
 @commands.has_role("Admin")
