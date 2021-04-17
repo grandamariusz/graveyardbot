@@ -520,12 +520,8 @@ countries = {
     "Zimbabwe": ":flag_zw:"
 }
 
-@client.command()
-async def user(ctx, user_id):
-    '''User details. Use: !user <osu_username>'''
-    try:
-        response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user_id}/osu', headers={'Authorization': f'Bearer {await return_token()}' }).json()
-        e = discord.Embed(title = f"User Details")
+def user_card(response, title = "User details"):
+        e = discord.Embed(title = title)
         e.add_field(name = "Username", value = response['username'])
         e.add_field(name = "Online", value = ':green_circle:' if response['is_online'] else ':red_circle:')
         e.add_field(name = "Country", value = countries[response['country']['name']])
@@ -535,7 +531,18 @@ async def user(ctx, user_id):
         e.add_field(name = "Play Time", value = f"{int(response['statistics']['play_time']) // 3600}h")
         global_rank = response["statistics"]["global_rank"]
         e.add_field(name="Rank", value = f"{'#' + str(global_rank) if global_rank is not None else '-'}")
-        e.set_thumbnail(url=response['avatar_url'])
+        avatar_url = response['avatar_url']
+        if 'avatar-guest' in avatar_url:
+            avatar_url = f'https://osu.ppy.sh{avatar_url}'
+        e.set_thumbnail(url=avatar_url)
+        return e
+
+@client.command()
+async def user(ctx, user_id):
+    '''User details. Use: !user <osu_username>'''
+    try:
+        response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user_id}/osu', headers={'Authorization': f'Bearer {await return_token()}' }).json()
+        e = user_card(response)
         await ctx.send(embed = e)
     except Exception:
         await ctx.send("User not found.")
@@ -566,12 +573,7 @@ async def verify(ctx, user):
                 break
     await ctx.author.remove_roles(discord.utils.get(ctx.guild.roles, name="Newcomers"))
 
-    e = discord.Embed(title = f"User Verified!")
-    e.add_field(name = "Username", value = response['username'], inline=False)
-    avatar_url = response['avatar_url']
-    if 'avatar-guest' in avatar_url:
-        avatar_url = f'https://osu.ppy.sh{avatar_url}'
-    e.set_thumbnail(url=avatar_url)
+    e = user_card(response, title = "User verified!")
     await ctx.send(embed = e)
 
 def main_menu(response):
