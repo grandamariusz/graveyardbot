@@ -534,12 +534,12 @@ async def user(ctx, user_id):
         e.add_field(name = "Graveyarded Maps", value = response['graveyard_beatmapset_count'])
         e.add_field(name = "Ranked Maps", value = response['ranked_and_approved_beatmapset_count'])
         e.add_field(name = "Play Time", value = f"{int(response['statistics']['play_time']) // 3600}h")
-        e.add_field(name="Rank", value = f"#{response['statistics']['global_rank']}")
+        global_rank = response["statistics"]["global_rank"]
+        e.add_field(name="Rank", value = f"{'#' + str(global_rank) if global_rank is not None else '-'}")
         e.set_thumbnail(url=response['avatar_url'])
         await ctx.send(embed = e)
     except Exception:
         await ctx.send("User not found.")
-
 
 @client.command()
 async def verify(ctx, user):
