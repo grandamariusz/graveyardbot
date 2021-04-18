@@ -702,6 +702,16 @@ async def maps(ctx, osu_user):
             exit_flag = await sub_menu(ctx, f"{response['username']}'s graveyarded maps", 0x171a1c, "graveyard", response['graveyard_beatmapset_count'], response, message, exit_flag)
         edit = True
 ### END MAPS COMMAND
+### START BPM COMMAND
+@client.command()
+async def bpm(ctx, bpm):
+    e = discord.Embed(title="BPM calculator and beatsnap divisor assistant", description=f"Input BPM: {bpm}", color=0x3b88c3)
+    bpm = int(bpm)
+    mspb = 1 / bpm * 60000
+    for i in [2, 3, 4, 5, 6, 7, 8, 9, 12, 16]:
+        e.add_field(name=f"1/{i} ： ⌠ `{bpm/4*i} bpm` ⌡", value=f"{round(mspb/i,1)}ms between notes", inline=True)
+    await ctx.send(embed = e)
+### END BPM COMMAND
 ### END USER COMMANDS
 
 ### START ADMIN COMMANDS
