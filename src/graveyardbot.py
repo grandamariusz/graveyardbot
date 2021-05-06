@@ -24,6 +24,8 @@ db.execute("create table if not exists tokens (name text unique, value text, exp
 
 emotes = config.emotes
 
+watchathon_msg = ""
+
 @client.event
 async def on_ready():
     print("I'm ready")
@@ -748,5 +750,26 @@ async def silence(ctx, member:discord.Member, duration):
     except ValueError:
         await ctx.send("Duration must be a positive integer.")
 ### END ADMIN COMMANDS
-    
+
+@client.event
+async def on_reaction_add(reaction, user):
+    # Bot channel
+    channel = client.get_channel(768206301104177194)
+    if reaction.message.channel.id != channel.id:
+        return
+    if reaction.emoji == "👺" and reaction.message.id == watchathon_msg:
+      role = discord.utils.get(user.guild.roles, name="Watchathon")
+      await user.add_roles(role)
+
+@client.command()
+@commands.has_role("Pianosuki")
+async def watchathon_role_assign(ctx):
+    # Bot channel
+    channel = client.get_channel(768206301104177194)
+    e = discord.Embed(title="React with :japanese_goblin: to add yourself to the @watchathon notification list.", description=f"Don't react if you don't wish to be pinged in the future.", color=0x3b88c3)
+    message = await channel.send(embed = e)
+    global watchathon_msg
+    watchathon_msg = message.id
+    await message.add_reaction("👺")
+
 client.run(config.discord_token)
