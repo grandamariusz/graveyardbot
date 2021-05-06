@@ -754,7 +754,7 @@ async def silence(ctx, member:discord.Member, duration):
 @client.event
 async def on_reaction_add(reaction, user):
     # Bot channel
-    channel = client.get_channel(768206301104177194)
+    channel = client.get_channel(config.announce_channel)
     if reaction.message.channel.id != channel.id:
         return
     if reaction.emoji == "👺" and reaction.message.id == watchathon_msg:
@@ -765,7 +765,7 @@ async def on_reaction_add(reaction, user):
 @commands.has_role("Pianosuki")
 async def watchathon_role_assign(ctx):
     # Bot channel
-    channel = client.get_channel(768206301104177194)
+    channel = client.get_channel(config.announce_channel)
     e = discord.Embed(title="React with :japanese_goblin: to add yourself to the @watchathon notification list.", description=f"Don't react if you don't wish to be pinged in the future.", color=0x3b88c3)
     message = await channel.send(embed = e)
     global watchathon_msg
