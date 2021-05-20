@@ -798,7 +798,6 @@ async def silence(ctx, member:discord.Member, duration):
 
 @client.command()
 @commands.has_role("GN")
-@commands.has_role("PianoSuki")
 async def poll(ctx):
     ''' Creates a watchathon poll '''
     anime = await load("anime")
