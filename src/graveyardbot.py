@@ -811,7 +811,7 @@ async def poll(ctx):
     anime.clear()
     await write(anime, "anime")
 
-    await ctx.send("The anime poll has been started! You have 24 hours to vote!\nUse `!anime <myanimelist_link>` to submit the anime you would want to be watched together!\nUse `!leaderboard` to show the anime leaderboard.\nUse `!vote <anime_id>` to vote for your favourite anime!")
+    await ctx.send(f"{watchathon.mention} The anime poll has been started! You have 24 hours to vote!\nUse `!anime <myanimelist_link>` to submit the anime you would want to be watched together!\nUse `!leaderboard` to show the anime leaderboard.\nUse `!vote <anime_id>` to vote for your favourite anime!")
     # await asyncio.sleep(172800)
     await asyncio.sleep(86400)
     await ctx.send(f"{watchathon.mention} The anime poll has been ended!\nFinal results:")
