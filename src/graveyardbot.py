@@ -24,7 +24,16 @@ db.execute("create table if not exists tokens (name text unique, value text, exp
 
 emotes = config.emotes
 
-watchathon_msg = ""
+# watchathon_msg = ""
+
+async def load(name):
+    with open(name+".json", "r") as f:
+        data = json.load(f)
+        return data
+
+async def write(data, name):
+    with open(name+".json", "w") as f:
+        users = json.dump(data, f, indent=2)
 
 @client.event
 async def on_ready():
@@ -714,6 +723,43 @@ async def bpm(ctx, bpm):
         e.add_field(name=f"1/{i} ： ⌠ `{bpm/4*i} bpm` ⌡", value=f"{round(mspb/i,1)}ms between notes", inline=True)
     await ctx.send(embed = e)
 ### END BPM COMMAND
+
+### START WATCHATHON COMMANDS
+@client.command()
+async def anime(ctx, link):
+    ''' Adds an anime to the watchathon poll. Usage: `!anime <myanimelist_link>`'''
+    anime = await load("anime")
+    link = link.split("/")
+    if link[-2] not in anime:
+        anime.update({link[-2]: [[], link[-1]]})
+        anime[link[-2]][0].append(ctx.author.id)
+        await ctx.send("Anime `" + link[-1].replace("_", " ") + "` has been added to the votelist, ID: `" + link[-2] + "`")
+    else:
+        await ctx.send("This anime have been submitted before! Check `!leaderboard`")
+    await write(anime, "anime")
+
+@client.command()
+async def vote(ctx, entry):
+    ''' Votes for an anime in the watchathon poll. Usage: `!vote <anime_id>`'''
+    anime = await load("anime")
+    if ctx.author.id in anime[entry][0]:
+        await ctx.send("You've already voted for `" + anime[entry][1].replace("_", " ") + "`!")
+    else:
+        anime[entry][0].append(ctx.author.id)
+        await ctx.send(ctx.author.name + " voted for `" + anime[entry][1].replace("_", " ") + "`!")
+        await write(anime, "anime")
+
+@client.command()
+async def leaderboard(ctx):
+    ''' Checks to see what the top voted for animes are '''
+    anime = await load("anime")
+    embed = discord.Embed(title = f"Anime Leaderboard")
+    s = sorted(anime.items(), reverse=True, key = lambda x: x[1])
+    d = dict(s)
+    for x in d:
+        embed.add_field(name = anime[x][1].replace("_"," ")+", `ID:"+x+"`", value='Votes: `'+str(len(anime[x][0]))+'`', inline=False)
+    await ctx.send(embed = embed)
+### END WATCHATHON COMMANDS
 ### END USER COMMANDS
 
 ### START ADMIN COMMANDS
@@ -738,7 +784,7 @@ async def ban(ctx, member:discord.Member):
 @client.command()
 @commands.has_role("Admin")
 async def silence(ctx, member:discord.Member, duration):
-    ''' Silences a member. Use: !silence <@user> <duration-in-seconds>'''
+    ''' Silences a member. Use: !silence <@user> <duration-in-seconds> '''
     try:
         duration = abs(int(duration))
         print(duration)
@@ -749,8 +795,24 @@ async def silence(ctx, member:discord.Member, duration):
         await ctx.send(f"{duration} seconds have elapsed. Unsilenced {member.name}")
     except ValueError:
         await ctx.send("Duration must be a positive integer.")
+
+@client.command()
+@commands.has_role("GN")
+@commands.has_role("PianoSuki")
+async def poll(ctx):
+    ''' Creates a watchathon poll '''
+    anime = await load("anime")
+    anime.clear()
+    await write(anime, "anime")
+
+    await ctx.send("The anime poll has been started! You have 24 hours to vote!\nUse `!anime <myanimelist_link>` to submit the anime you would want to be watched together!\nUse `!leaderboard` to show the anime leaderboard.\nUse `!vote <anime_id>` to vote for your favourite anime!")
+    #await asyncio.sleep(172800)
+    await asyncio.sleep(86400)
+    await ctx.send("The anime poll has been ended!\nFinal results:")
+    await leaderboard(ctx)
 ### END ADMIN COMMANDS
 
+'''
 @client.event
 async def on_reaction_add(reaction, user):
     # Bot channel
@@ -762,7 +824,7 @@ async def on_reaction_add(reaction, user):
       await user.add_roles(role)
 
 @client.command()
-@commands.has_role("Pianosuki")
+@commands.has_role("PianoSuki")
 async def watchathon_role_assign(ctx):
     # Bot channel
     channel = client.get_channel(config.announce_channel)
@@ -771,5 +833,6 @@ async def watchathon_role_assign(ctx):
     global watchathon_msg
     watchathon_msg = message.id
     await message.add_reaction("👺")
+'''
 
 client.run(config.discord_token)
