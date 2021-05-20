@@ -732,11 +732,14 @@ async def anime(ctx, link):
     link = link.split("/")
     if link[-2] not in anime:
         anime.update({link[-2]: [[], link[-1]]})
-        anime[link[-2]][0].append(ctx.author.id)
+        # anime[link[-2]][0].append(ctx.author.id)
         await ctx.send("Anime `" + link[-1].replace("_", " ") + "` has been added to the votelist, ID: `" + link[-2] + "`")
     else:
         await ctx.send("This anime have been submitted before! Check `!leaderboard`")
     await write(anime, "anime")
+
+    role = discord.utils.get(ctx.guild.roles, name="Watchathon")
+    await ctx.author.add_roles(role)
 
 @client.command()
 async def vote(ctx, entry):
@@ -749,6 +752,9 @@ async def vote(ctx, entry):
         await ctx.send(ctx.author.name + " voted for `" + anime[entry][1].replace("_", " ") + "`!")
         await write(anime, "anime")
 
+    role = discord.utils.get(ctx.guild.roles, name="Watchathon")
+    await ctx.author.add_roles(role)
+
 @client.command()
 async def leaderboard(ctx):
     ''' Checks to see what the top voted for animes are '''
@@ -757,7 +763,7 @@ async def leaderboard(ctx):
     s = sorted(anime.items(), reverse=True, key = lambda x: x[1])
     d = dict(s)
     for x in d:
-        embed.add_field(name = anime[x][1].replace("_"," ")+", `ID:"+x+"`", value='Votes: `'+str(len(anime[x][0]))+'`', inline=False)
+        embed.add_field(name = anime[x][1].replace("_"," ")+", `ID: "+x+"`", value='Votes: `'+str(len(anime[x][0]))+'`', inline=False)
     await ctx.send(embed = embed)
 ### END WATCHATHON COMMANDS
 ### END USER COMMANDS
@@ -801,13 +807,14 @@ async def silence(ctx, member:discord.Member, duration):
 async def poll(ctx):
     ''' Creates a watchathon poll '''
     anime = await load("anime")
+    watchathon = discord.utils.get(ctx.guild.roles, name="Watchathon")
     anime.clear()
     await write(anime, "anime")
 
     await ctx.send("The anime poll has been started! You have 24 hours to vote!\nUse `!anime <myanimelist_link>` to submit the anime you would want to be watched together!\nUse `!leaderboard` to show the anime leaderboard.\nUse `!vote <anime_id>` to vote for your favourite anime!")
-    #await asyncio.sleep(172800)
+    # await asyncio.sleep(172800)
     await asyncio.sleep(86400)
-    await ctx.send("The anime poll has been ended!\nFinal results:")
+    await ctx.send(f"{watchathon.mention} The anime poll has been ended!\nFinal results:")
     await leaderboard(ctx)
 ### END ADMIN COMMANDS
 
