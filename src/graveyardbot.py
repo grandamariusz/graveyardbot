@@ -560,7 +560,7 @@ async def user(ctx, user_id):
 
 @client.command()
 async def verify(ctx, user):
-    '''Verify an user. Use: !verify <osu_username>'''
+    '''Verify a user. Use: !verify <osu_username>'''
     response = requests.get(f'https://osu.ppy.sh/api/v2/users/{user}/osu', headers={'Authorization': f'Bearer {await return_token()}' }).json()
     graved = response['graveyard_beatmapset_count']
     tainted = response['ranked_and_approved_beatmapset_count']
