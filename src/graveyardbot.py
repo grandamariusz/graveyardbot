@@ -93,30 +93,30 @@ async def get_bpm_key(song_id, e):
         response = requests.get(f"https://acousticbrainz.org/api/v1/{song_id}/low-level")
         response.raise_for_status()
         json_response = response.json()
-        
+
         # Assign the data to variables
         bpm = round(json_response["rhythm"]["bpm"])
         key = json_response["tonal"]["key_key"]
         scale = json_response["tonal"]["key_scale"]
         key_probability = json_response["tonal"]["key_strength"]
-                    
-        # Add fields to embed          
+
+        # Add fields to embed
         e.add_field(name = "BPM", value = bpm, inline = True)
         e.add_field(name = f"Key signature: {key} {scale}", value = f"Accuracy: {key_probability*100:.2f}%", inline = True)
     except Exception:
         pass
 ### END ACOUSTIC ANALYSIS FUNCTION
-    
+
 ### START GET COVER ART FUNCTION
 async def get_cover_art(release_id, e):
-    
+
     # Try to get the cover art from CoverArtArchive
     try:
         print("Trying CoverArtArchive")
         redirect=requests.get(mb.get_image_list(release_id)["images"][0]["thumbnails"]["large"]).url
         e.set_thumbnail(url=redirect)
     except Exception:
-        
+
         # Try to get the cover art from Amazon
         try:
             print("Trying Amazon")
@@ -166,14 +166,14 @@ async def wait_for_reaction(ctx, message, e, emojis):
 @client.command()
 async def dl(ctx, *, input: str):
     ''' Interactive metadata lookup for a song. Usage example: !dl <artist> <title> '''
-    
+
     # Set the musicbrainz agent and get the recordings
     mb.set_useragent("GraveyardBot", "8.7", "beatmaster@beatconnect.io")
     result = mb.search_recordings(query=" AND ".join(input.split()), limit=5)
 
     # If song was found
     if "recording-list" in result:
-        
+
         # Loop through all of the songs
         exit_flag = reset_flag = edit_flag = False
         while not (exit_flag and reset_flag):
@@ -269,7 +269,7 @@ async def dl(ctx, *, input: str):
                     # Set dummy cover art
                     e.set_thumbnail(url="https://cdn.discordapp.com/emojis/778698404317364224.png")
                     await ctx.send(embed = e)
-                
+
     # If song was not found
     else:
         e = discord.Embed(title = "Song not found!", color = 0xff3232)
@@ -796,7 +796,7 @@ async def silence(ctx, member:discord.Member, duration):
         print(duration)
         await ctx.send(f"Silenced {member.name} for {duration} seconds!")
         await member.add_roles(discord.utils.get(ctx.guild.roles, name="Silenced"))
-        time.sleep(duration)
+        await asyncio.sleep(duration)
         await member.remove_roles(discord.utils.get(ctx.guild.roles, name="Silenced"))
         await ctx.send(f"{duration} seconds have elapsed. Unsilenced {member.name}")
     except ValueError:
